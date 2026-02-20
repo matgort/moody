@@ -1,5 +1,4 @@
 
-
 <!doctype html>
 <html lang="en">
   <head>
@@ -41,9 +40,9 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         gap: clamp(12px, 2.2vh, 24px);
-        padding: calc(10px + env(safe-area-inset-top)) 0 calc(14px + env(safe-area-inset-bottom));
+        padding: calc(10px + env(safe-area-inset-top)) 0 calc(6px + env(safe-area-inset-bottom));
         box-sizing: border-box;
       }
 
@@ -60,6 +59,7 @@
       .symbol-stage {
         width: min(88vw, 74svh, 760px);
         position: relative;
+        margin-top: auto;
       }
 
       .wrap {
@@ -101,6 +101,8 @@
         display: grid;
         justify-items: center;
         gap: 5px;
+        margin-top: auto;
+        margin-bottom: 2px;
       }
 
       .instruction-row {
@@ -109,7 +111,7 @@
         justify-content: center;
         width: 100%;
         font-size: clamp(10px, 1.02vw, 11px);
-        margin-top: 4px;
+        margin-top: 10px;
       }
 
       .instruction-row .instruction {
@@ -184,30 +186,40 @@
         }
 
         .date-stamp {
-          font-size: clamp(12px, 2.2vmin, 20px);
+          font-size: clamp(18px, 4.1vmin, 28px);
         }
 
         .date-top {
-          top: -3%;
-          right: -2.1%;
+          top: -5.4%;
+          right: -2.4%;
         }
 
         .date-bottom {
-          bottom: -3%;
-          left: -2.1%;
+          bottom: -5.4%;
+          left: -2.4%;
         }
 
         .meta {
           width: min(94vw, 620px);
-          gap: 4px;
+          gap: 7px;
+          margin-top: clamp(74px, calc(10vh + 30px), 150px);
+          margin-bottom: calc(4px + env(safe-area-inset-bottom));
         }
 
         .instruction {
-          font-size: clamp(10px, 2.8vw, 11px);
+          font-size: clamp(14px, 3.9vw, 18px);
+          color: rgba(73, 45, 23, 0.74);
         }
 
         .instruction-row .instruction {
-          max-width: 56ch;
+          max-width: 92vw;
+        }
+
+        .shot-btn {
+          font-size: clamp(14px, 3.9vw, 18px);
+          color: rgba(73, 45, 23, 0.74);
+          border-color: rgba(73, 45, 23, 0.58);
+          padding: 4px 14px;
         }
       }
     </style>
@@ -307,7 +319,9 @@
           white: getComputedStyle(document.documentElement).getPropertyValue("--white").trim(),
         };
         const DOT_PADDING_CSS = 5;
-        const DOT_RESIZE_INNER_PAD_CSS = 4;
+        const DOT_DRAG_HIT_PAD_CSS = 6;
+        const PUSH_MIN = 0.005;
+        const PUSH_MAX = 0.995;
 
         const state = {
           whitePush: 0.5,
@@ -318,16 +332,16 @@
           blackLocalShiftX: 0,
           whiteFocusY: -0.5,
           blackFocusY: 0.5,
-          topDotScale: 1,
-          bottomDotScale: 1,
         };
+        const stateTarget = { ...state };
+        const STATE_KEYS = Object.keys(state);
 
         const SELECTION_RING_WIDTH_CSS = 6;
 
         const drag = {
           active: false,
           pointerId: null,
-          mode: null, // "white" | "black" | "topDotResize" | "bottomDotResize"
+          mode: null, // "white" | "black" | "topDotMove" | "bottomDotMove"
           start: { x: 0, y: 0 },
           last: { x: 0, y: 0 },
           startWhitePush: 0.5,
@@ -338,13 +352,11 @@
           startBlackLocalShiftX: 0,
           startWhiteFocusY: -0.5,
           startBlackFocusY: 0.5,
-          startTopScale: 1,
-          startBottomScale: 1,
           grabYNorm: 0,
           topInfluence: 0.5,
           bottomInfluence: 0.5,
           activeDotCenter: { x: 0, y: 0 },
-          activeDotStartDist: 0,
+          activeDotOffset: { x: 0, y: 0 },
         };
 
         const dotMemory = {
@@ -352,8 +364,65 @@
           bottom: null,
         };
 
+        const dotUser = {
+          top: { active: false, x: 0, y: -0.5 },
+          bottom: { active: false, x: 0, y: 0.5 },
+        };
+
         function clamp(n, min, max) {
           return Math.min(max, Math.max(min, n));
+        }
+
+        function clampPush(value) {
+          return clamp(value, PUSH_MIN, PUSH_MAX);
+        }
+
+        function setDotUserPosition(key, x, y, R) {
+          const safeR = Math.max(1e-6, R);
+          dotUser[key].active = true;
+          dotUser[key].x = clamp(x / safeR, -1.2, 1.2);
+          dotUser[key].y = clamp(y / safeR, -1.2, 1.2);
+        }
+
+        function getDotUserPosition(key, R) {
+          const safeR = Math.max(1e-6, R);
+          return { x: dotUser[key].x * safeR, y: dotUser[key].y * safeR };
+        }
+
+        function dividerSlopeAtY(y, R) {
+          const h = Math.max(1, R * 0.006);
+          const y0 = clamp(y - h, -R, R);
+          const y1 = clamp(y + h, -R, R);
+          const dy = Math.max(1e-6, y1 - y0);
+          return (dividerXAtY(y1, R) - dividerXAtY(y0, R)) / dy;
+        }
+
+        function dividerNormalDistance(x, y, R) {
+          const dx = x - dividerXAtY(y, R);
+          const slope = dividerSlopeAtY(y, R);
+          return Math.abs(dx) / Math.sqrt(1 + slope * slope);
+        }
+
+        function easeStateTowardTarget() {
+          let moving = false;
+          for (let i = 0; i < STATE_KEYS.length; i += 1) {
+            const key = STATE_KEYS[i];
+            const current = state[key];
+            const target = stateTarget[key];
+            const delta = target - current;
+            if (Math.abs(delta) <= 1e-4) {
+              state[key] = target;
+              continue;
+            }
+            const follow = drag.active ? 0.3 : 0.2;
+            state[key] = current + delta * follow;
+            if (Math.abs(target - state[key]) <= 1e-4) {
+              state[key] = target;
+            } else {
+              moving = true;
+            }
+          }
+          return moving;
         }
 
         function getGrabInfluence(yNorm) {
@@ -415,8 +484,8 @@
           topCenter = clamp(topCenter, -1.14 * R, 0.92 * R);
           bottomCenter = clamp(bottomCenter, -0.92 * R, 1.14 * R);
 
-          const minGap = 0.03 * R;
-          const maxGap = 1.98 * R;
+          const minGap = 0.08 * R;
+          const maxGap = 1.9 * R;
           let gap = bottomCenter - topCenter;
           if (gap < minGap) {
             const spread = (minGap - gap) * 0.5;
@@ -456,7 +525,7 @@
           const outerX = Math.sqrt(Math.max(0, R * R - y * y));
 
           const base = baseDividerX(y, R);
-          const sigma = 0.37 * R;
+          const sigma = 0.39 * R;
           const topProfile = Math.exp(-Math.pow((y - topCenter) / sigma, 2));
           const bottomProfile = Math.exp(-Math.pow((y - bottomCenter) / sigma, 2));
           const middleProfile = Math.exp(-Math.pow(y / (0.52 * R), 2));
@@ -475,7 +544,7 @@
             0.34 * (state.whiteLift - state.blackLift) * t;
           deform *= envelope * R;
 
-          const localSigma = 0.28 * R;
+          const localSigma = 0.36 * R;
           const whiteLocalCenter = clamp(
             (state.whiteFocusY + state.whiteLift * 0.08) * R,
             -0.95 * R,
@@ -489,8 +558,8 @@
           const whiteLocalProfile = Math.exp(-Math.pow((y - whiteLocalCenter) / localSigma, 2));
           const blackLocalProfile = Math.exp(-Math.pow((y - blackLocalCenter) / localSigma, 2));
           const localDeform =
-            (0.62 * state.whiteLocalShiftX * whiteLocalProfile -
-              0.62 * state.blackLocalShiftX * blackLocalProfile) *
+            (0.48 * state.whiteLocalShiftX * whiteLocalProfile -
+              0.48 * state.blackLocalShiftX * blackLocalProfile) *
             edgeEnvelope *
             envelope *
             R;
@@ -504,25 +573,6 @@
           if (limit <= 1e-9) return 0;
           x = limit * Math.tanh(x / (limit + 1e-9));
           return x;
-        }
-
-        function getDotScaleBias(areaFractions) {
-          const { topCoeff, bottomCoeff } = getLobeCoefficients();
-          const whiteFrac = clamp(areaFractions?.white ?? 0.5, 0.01, 0.99);
-          const blackFrac = clamp(areaFractions?.black ?? 0.5, 0.01, 0.99);
-
-          const areaToBias = (fraction) => clamp(Math.pow(fraction / 0.5, 1.6), 0.03, 1.26);
-          const shapeToBias = (coeff) => clamp(Math.pow(coeff / 0.5, 0.28), 0.82, 1.16);
-
-          const topAreaBias = areaToBias(whiteFrac);
-          const bottomAreaBias = areaToBias(blackFrac);
-          const topShapeBias = shapeToBias(topCoeff);
-          const bottomShapeBias = shapeToBias(bottomCoeff);
-
-          return {
-            top: clamp(topAreaBias * 0.9 + topShapeBias * 0.1, 0.03, 1.26),
-            bottom: clamp(bottomAreaBias * 0.9 + bottomShapeBias * 0.1, 0.03, 1.26),
-          };
         }
 
         function getGlobalDeformAmount() {
@@ -551,39 +601,67 @@
           return points.map((point, index) => ({ x: xs[index], y: point.y }));
         }
 
-        function buildDivider(R, globalDeform, steps = 900) {
+        function buildDivider(R, globalDeform, steps = 680) {
           const points = [];
           for (let i = 0; i <= steps; i += 1) {
             const y = -R + (2 * R * i) / steps;
             points.push({ x: dividerXAtY(y, R), y });
           }
-          const smoothPasses = globalDeform < 0.05 ? 0 : 2;
+          const smoothPasses = globalDeform < 0.04 ? 1 : 3;
           return smoothDividerPoints(points, smoothPasses);
         }
 
-        function estimateColorFractions(R, dividerPoints) {
-          const steps = Math.max(1, dividerPoints.length - 1);
-          const dy = (2 * R) / steps;
-          let whiteArea = 0;
+        function dividerXFromPointsAtY(dividerPoints, y, R) {
+          const points = dividerPoints;
+          if (!points || points.length < 2) return dividerXAtY(y, R);
+          if (y <= -R) return points[0].x;
+          if (y >= R) return points[points.length - 1].x;
 
-          for (let i = 0; i < dividerPoints.length; i += 1) {
-            const y = dividerPoints[i].y;
-            const outerX = Math.sqrt(Math.max(0, R * R - y * y));
-            const dividerX = clamp(dividerPoints[i].x, -outerX, outerX);
-            const whiteSpan = clamp(dividerX + outerX, 0, 2 * outerX);
-            whiteArea += whiteSpan * dy;
-          }
-
-          const totalArea = Math.PI * R * R;
-          const white = clamp(whiteArea / Math.max(1e-6, totalArea), 0, 1);
-          return { white, black: 1 - white };
+          const normalized = (y + R) / (2 * R);
+          const t = normalized * (points.length - 1);
+          const i0 = Math.floor(t);
+          const i1 = Math.min(points.length - 1, i0 + 1);
+          const localT = t - i0;
+          const p0 = points[i0];
+          const p1 = points[i1];
+          return p0.x + (p1.x - p0.x) * localT;
         }
 
-        function isWhiteAt(x, y, R) {
-          return x <= dividerXAtY(y, R);
+        function dividerSlopeFromPointsAtY(dividerPoints, y, R) {
+          const points = dividerPoints;
+          if (!points || points.length < 2) return dividerSlopeAtY(y, R);
+          const sampleStep = (2 * R) / Math.max(32, points.length - 1);
+          const y0 = clamp(y - sampleStep, -R, R);
+          const y1 = clamp(y + sampleStep, -R, R);
+          const dy = Math.max(1e-6, y1 - y0);
+          const x0 = dividerXFromPointsAtY(points, y0, R);
+          const x1 = dividerXFromPointsAtY(points, y1, R);
+          return (x1 - x0) / dy;
         }
 
-        function findDotAuto(R, region, scaleFactor, padding, lobeCenters, stackAxisX) {
+        function dividerNormalDistanceFromPoints(x, y, R, dividerPoints) {
+          const points = dividerPoints;
+          if (!points || points.length < 2) return dividerNormalDistance(x, y, R);
+          const dx = x - dividerXFromPointsAtY(points, y, R);
+          const slope = dividerSlopeFromPointsAtY(points, y, R);
+          return Math.abs(dx) / Math.sqrt(1 + slope * slope);
+        }
+
+        function isWhiteAt(x, y, R, dividerPoints = null) {
+          const dividerX = dividerPoints
+            ? dividerXFromPointsAtY(dividerPoints, y, R)
+            : dividerXAtY(y, R);
+          return x <= dividerX;
+        }
+
+        function findDotAuto(
+          R,
+          region,
+          padding,
+          lobeCenters,
+          stackAxisX,
+          dividerPoints
+        ) {
           const isTop = region === "top";
           const dominance = clamp(state.whitePush - state.blackPush, -1, 1);
           const lift = isTop ? state.whiteLift : state.blackLift;
@@ -602,7 +680,7 @@
 
           const getHostRangeAtY = (y) => {
             const outer = Math.sqrt(Math.max(0, R * R - y * y));
-            const divider = clamp(dividerXAtY(y, R), -outer, outer);
+            const divider = clamp(dividerXFromPointsAtY(dividerPoints, y, R), -outer, outer);
             const left = isTop ? -outer : divider;
             const right = isTop ? divider : outer;
             return { left, right, span: Math.max(0, right - left) };
@@ -616,8 +694,8 @@
             dominance * (isTop ? 0.015 : -0.015) * R;
           const spanX = 0.88 * R;
           const spanY = 0.92 * R;
-          const cols = 56;
-          const rows = 56;
+          const cols = 42;
+          const rows = 42;
           const yMin = Math.max(isTop ? -R : -0.24 * R, yAnchor - spanY * 0.5);
           const yMax = Math.min(isTop ? 0.24 * R : R, yAnchor + spanY * 0.5);
 
@@ -631,11 +709,11 @@
               const x = xAnchor - spanX * 0.5 + (spanX * ix) / cols;
               if (Math.abs(x) >= outer) continue;
 
-              const white = isWhiteAt(x, y, R);
+              const white = isWhiteAt(x, y, R, dividerPoints);
               if ((isTop && !white) || (!isTop && white)) continue;
 
               const dOuter = R - Math.hypot(x, y);
-              const dDivider = Math.abs(x - dividerXAtY(y, R));
+              const dDivider = dividerNormalDistanceFromPoints(x, y, R, dividerPoints);
               const maxR = Math.min(dOuter, dDivider) - padding;
               if (maxR <= 0) continue;
 
@@ -685,27 +763,27 @@
             }
           }
 
-          const maxAllowed = Math.min(chosen.maxR * 0.6, R * 0.21);
+          const maxAllowed = Math.min(chosen.maxR * 0.42, R * 0.2);
           const minAllowed = Math.min(R * 0.008, maxAllowed);
           return {
             x: chosen.x,
             y: chosen.y,
-            r: clamp(chosen.maxR * scaleFactor, minAllowed, maxAllowed),
+            r: clamp(chosen.maxR * 0.24, minAllowed, maxAllowed),
             room: chosen.maxR,
           };
         }
 
-        function getDotRoomAt(x, y, R, isTop, padding) {
+        function getDotRoomAt(x, y, R, isTop, padding, dividerPoints) {
           if (!isInsideCircle(x, y, R)) return 0;
-          const white = isWhiteAt(x, y, R);
+          const white = isWhiteAt(x, y, R, dividerPoints);
           if ((isTop && !white) || (!isTop && white)) return 0;
           const dOuter = R - Math.hypot(x, y);
-          const dDivider = Math.abs(x - dividerXAtY(y, R));
+          const dDivider = dividerNormalDistanceFromPoints(x, y, R, dividerPoints);
           return Math.max(0, Math.min(dOuter, dDivider) - padding);
         }
 
-        function constrainDotToBlob(targetX, targetY, R, r, isTop, padding) {
-          const safePadding = padding * 1.25;
+        function constrainDotToBlob(targetX, targetY, R, r, isTop, padding, dividerPoints) {
+          const safePadding = padding * 1.4;
           const safeOuterR = Math.max(0, R - (r + safePadding));
           const steps = 180;
           let best = null;
@@ -713,8 +791,8 @@
           for (let i = 0; i <= steps; i += 1) {
             const y = -safeOuterR + (2 * safeOuterR * i) / steps;
             const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
-            const dividerX = dividerXAtY(y, R);
-            const wall = r + safePadding;
+            const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
+            const wall = (r + safePadding) * 1.08;
             let left = -outerX;
             let right = outerX;
 
@@ -738,13 +816,13 @@
           return { x: best.x, y: best.y };
         }
 
-        function constrainDotXAtY(targetX, y, R, r, isTop, padding) {
-          const safePadding = padding * 1.25;
+        function constrainDotXAtY(targetX, y, R, r, isTop, padding, dividerPoints) {
+          const safePadding = padding * 1.4;
           const safeOuterR = Math.max(0, R - (r + safePadding));
           if (Math.abs(y) > safeOuterR) return null;
           const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
-          const dividerX = dividerXAtY(y, R);
-          const wall = r + safePadding;
+          const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
+          const wall = (r + safePadding) * 1.08;
           let left = -outerX;
           let right = outerX;
           if (isTop) {
@@ -756,20 +834,28 @@
           return clamp(targetX, left, right);
         }
 
-        function fitDotInsideBlob(dot, R, isTop, padding) {
+        function fitDotInsideBlob(dot, R, isTop, padding, dividerPoints) {
           let radius = Math.max(0.35, dot.r);
-          let point = constrainDotToBlob(dot.x, dot.y, R, radius, isTop, padding);
+          let point = constrainDotToBlob(dot.x, dot.y, R, radius, isTop, padding, dividerPoints);
 
           for (let i = 0; i < 8 && !point; i += 1) {
             radius *= 0.84;
-            point = constrainDotToBlob(dot.x, dot.y, R, radius, isTop, padding);
+            point = constrainDotToBlob(dot.x, dot.y, R, radius, isTop, padding, dividerPoints);
           }
 
           if (!point) {
             const fallbackY = isTop ? -0.5 * R : 0.5 * R;
-            const fallbackX = baseDividerX(0, R);
+            const fallbackX = dividerXFromPointsAtY(dividerPoints, 0, R);
             radius = Math.max(0.35, Math.min(radius, R * 0.035));
-            point = constrainDotToBlob(fallbackX, fallbackY, R, radius, isTop, padding);
+            point = constrainDotToBlob(
+              fallbackX,
+              fallbackY,
+              R,
+              radius,
+              isTop,
+              padding,
+              dividerPoints
+            );
           }
 
           if (!point) {
@@ -779,26 +865,34 @@
           return { x: point.x, y: point.y, r: radius };
         }
 
-        function stabilizeDotCenter(targetDot, key, R, isTop, padding) {
+        function stabilizeDotCenter(targetDot, key, R, isTop, padding, dividerPoints) {
           const memory = dotMemory[key];
-          const fittedTarget = fitDotInsideBlob(targetDot, R, isTop, padding);
+          const fittedTarget = fitDotInsideBlob(targetDot, R, isTop, padding, dividerPoints);
 
           if (!memory) {
             dotMemory[key] = { x: fittedTarget.x, y: fittedTarget.y };
             return fittedTarget;
           }
 
-          const isResizing =
-            (key === "top" && drag.active && drag.mode === "topDotResize") ||
-            (key === "bottom" && drag.active && drag.mode === "bottomDotResize");
+          const isDraggingDot =
+            (key === "top" && drag.active && drag.mode === "topDotMove") ||
+            (key === "bottom" && drag.active && drag.mode === "bottomDotMove");
           const distN =
             Math.hypot(fittedTarget.x - memory.x, fittedTarget.y - memory.y) / Math.max(1e-6, R);
-          const follow = isResizing ? clamp(0.72 + distN * 0.2, 0.72, 0.9) : clamp(0.24 + distN * 0.5, 0.24, 0.62);
+          const follow = isDraggingDot
+            ? clamp(0.74 + distN * 0.18, 0.74, 0.92)
+            : clamp(0.14 + distN * 0.3, 0.14, 0.42);
 
           memory.x += (fittedTarget.x - memory.x) * follow;
           memory.y += (fittedTarget.y - memory.y) * follow;
 
-          const fittedMemory = fitDotInsideBlob({ x: memory.x, y: memory.y, r: fittedTarget.r }, R, isTop, padding);
+          const fittedMemory = fitDotInsideBlob(
+            { x: memory.x, y: memory.y, r: fittedTarget.r },
+            R,
+            isTop,
+            padding,
+            dividerPoints
+          );
           memory.x = fittedMemory.x;
           memory.y = fittedMemory.y;
 
@@ -810,28 +904,41 @@
           const padding = DOT_PADDING_CSS * getCanvasScale();
           const globalDeform = getGlobalDeformAmount();
           const dividerPoints = buildDivider(R, globalDeform);
-          const areaFractions = estimateColorFractions(R, dividerPoints);
           const lobeCenters = getLobeCenters(R);
-          const stackAxisX = baseDividerX(0, R);
-          const topScaleFactor = state.topDotScale;
-          const bottomScaleFactor = state.bottomDotScale;
-          const topAuto = findDotAuto(R, "top", topScaleFactor, padding, lobeCenters, stackAxisX);
+          const stackAxisX = dividerXFromPointsAtY(dividerPoints, 0, R);
+          const topAuto = findDotAuto(
+            R,
+            "top",
+            padding,
+            lobeCenters,
+            stackAxisX,
+            dividerPoints
+          );
           const bottomAuto = findDotAuto(
             R,
             "bottom",
-            bottomScaleFactor,
             padding,
             lobeCenters,
-            stackAxisX
+            stackAxisX,
+            dividerPoints
           );
-          const topPlaced = constrainDotToBlob(topAuto.x, topAuto.y, R, topAuto.r, true, padding);
+          const topPlaced = constrainDotToBlob(
+            topAuto.x,
+            topAuto.y,
+            R,
+            topAuto.r,
+            true,
+            padding,
+            dividerPoints
+          );
           const bottomPlaced = constrainDotToBlob(
             bottomAuto.x,
             bottomAuto.y,
             R,
             bottomAuto.r,
             false,
-            padding
+            padding,
+            dividerPoints
           );
           let topTarget = topPlaced
             ? { x: topPlaced.x, y: topPlaced.y, r: topAuto.r }
@@ -840,54 +947,112 @@
             ? { x: bottomPlaced.x, y: bottomPlaced.y, r: bottomAuto.r }
             : { x: bottomAuto.x, y: bottomAuto.y, r: bottomAuto.r };
 
-          const DOT_BASE_RADIUS_RATIO = 0.12;
-          const topBulbPct = clamp((areaFractions.white || 0.5) / 0.5, 0.02, 4.2);
-          const bottomBulbPct = clamp((areaFractions.black || 0.5) / 0.5, 0.02, 4.2);
+          if (dotUser.top.active) {
+            const manualTop = getDotUserPosition("top", R);
+            const fittedTop = constrainDotToBlob(
+              manualTop.x,
+              manualTop.y,
+              R,
+              Math.max(0.35, R * 0.004),
+              true,
+              padding,
+              dividerPoints
+            );
+            if (fittedTop) {
+              topTarget.x = fittedTop.x;
+              topTarget.y = fittedTop.y;
+            }
+          }
+
+          if (dotUser.bottom.active) {
+            const manualBottom = getDotUserPosition("bottom", R);
+            const fittedBottom = constrainDotToBlob(
+              manualBottom.x,
+              manualBottom.y,
+              R,
+              Math.max(0.35, R * 0.004),
+              false,
+              padding,
+              dividerPoints
+            );
+            if (fittedBottom) {
+              bottomTarget.x = fittedBottom.x;
+              bottomTarget.y = fittedBottom.y;
+            }
+          }
 
           const stackBias = clamp(0.9 - globalDeform * 0.1, 0.74, 0.9);
-          const topStackX = constrainDotXAtY(stackAxisX, topTarget.y, R, topTarget.r, true, padding);
-          if (topStackX != null) {
-            topTarget.x = topTarget.x * (1 - stackBias) + topStackX * stackBias;
+          if (!dotUser.top.active) {
+            const topStackX = constrainDotXAtY(
+              stackAxisX,
+              topTarget.y,
+              R,
+              topTarget.r,
+              true,
+              padding,
+              dividerPoints
+            );
+            if (topStackX != null) {
+              topTarget.x = topTarget.x * (1 - stackBias) + topStackX * stackBias;
+            }
           }
-          const bottomStackX = constrainDotXAtY(
-            stackAxisX,
-            bottomTarget.y,
-            R,
-            bottomTarget.r,
-            false,
-            padding
-          );
-          if (bottomStackX != null) {
-            bottomTarget.x = bottomTarget.x * (1 - stackBias) + bottomStackX * stackBias;
+          if (!dotUser.bottom.active) {
+            const bottomStackX = constrainDotXAtY(
+              stackAxisX,
+              bottomTarget.y,
+              R,
+              bottomTarget.r,
+              false,
+              padding,
+              dividerPoints
+            );
+            if (bottomStackX != null) {
+              bottomTarget.x = bottomTarget.x * (1 - stackBias) + bottomStackX * stackBias;
+            }
           }
 
           const pairedStackBias = clamp(0.82 - globalDeform * 0.08, 0.68, 0.82);
           const sharedStackTarget =
             stackAxisX * 0.72 + ((topTarget.x + bottomTarget.x) * 0.5) * 0.28;
-          const topSharedX = constrainDotXAtY(
-            sharedStackTarget,
+          if (!dotUser.top.active) {
+            const topSharedX = constrainDotXAtY(
+              sharedStackTarget,
+              topTarget.y,
+              R,
+              topTarget.r,
+              true,
+              padding,
+              dividerPoints
+            );
+            if (topSharedX != null) {
+              topTarget.x = topTarget.x * (1 - pairedStackBias) + topSharedX * pairedStackBias;
+            }
+          }
+          if (!dotUser.bottom.active) {
+            const bottomSharedX = constrainDotXAtY(
+              sharedStackTarget,
+              bottomTarget.y,
+              R,
+              bottomTarget.r,
+              false,
+              padding,
+              dividerPoints
+            );
+            if (bottomSharedX != null) {
+              bottomTarget.x =
+                bottomTarget.x * (1 - pairedStackBias) + bottomSharedX * pairedStackBias;
+            }
+          }
+
+          const topReplaced = constrainDotToBlob(
+            topTarget.x,
             topTarget.y,
             R,
             topTarget.r,
             true,
-            padding
+            padding,
+            dividerPoints
           );
-          if (topSharedX != null) {
-            topTarget.x = topTarget.x * (1 - pairedStackBias) + topSharedX * pairedStackBias;
-          }
-          const bottomSharedX = constrainDotXAtY(
-            sharedStackTarget,
-            bottomTarget.y,
-            R,
-            bottomTarget.r,
-            false,
-            padding
-          );
-          if (bottomSharedX != null) {
-            bottomTarget.x = bottomTarget.x * (1 - pairedStackBias) + bottomSharedX * pairedStackBias;
-          }
-
-          const topReplaced = constrainDotToBlob(topTarget.x, topTarget.y, R, topTarget.r, true, padding);
           if (topReplaced) {
             topTarget.x = topReplaced.x;
             topTarget.y = topReplaced.y;
@@ -898,38 +1063,54 @@
             R,
             bottomTarget.r,
             false,
-            padding
+            padding,
+            dividerPoints
           );
           if (bottomReplaced) {
             bottomTarget.x = bottomReplaced.x;
             bottomTarget.y = bottomReplaced.y;
           }
 
-          const topRoom = getDotRoomAt(topTarget.x, topTarget.y, R, true, padding);
-          const bottomRoom = getDotRoomAt(bottomTarget.x, bottomTarget.y, R, false, padding);
-          const topDesiredR = R * DOT_BASE_RADIUS_RATIO * topBulbPct * topScaleFactor;
-          const bottomDesiredR = R * DOT_BASE_RADIUS_RATIO * bottomBulbPct * bottomScaleFactor;
-          const topMax = Math.min(topRoom * 0.98, R * 0.46);
-          const bottomMax = Math.min(bottomRoom * 0.98, R * 0.46);
+          const topRoom = getDotRoomAt(topTarget.x, topTarget.y, R, true, padding, dividerPoints);
+          const bottomRoom = getDotRoomAt(
+            bottomTarget.x,
+            bottomTarget.y,
+            R,
+            false,
+            padding,
+            dividerPoints
+          );
+          const dotBaseRadius = R * 0.12;
+          const topRoomScale = clamp(topRoom / Math.max(1e-6, 0.5 * R), 0.03, 2.4);
+          const bottomRoomScale = clamp(bottomRoom / Math.max(1e-6, 0.5 * R), 0.03, 2.4);
+          const topDesiredR = dotBaseRadius * topRoomScale;
+          const bottomDesiredR = dotBaseRadius * bottomRoomScale;
+          const topMax = Math.min(topRoom * 0.96, R * 0.38);
+          const bottomMax = Math.min(bottomRoom * 0.96, R * 0.38);
           if (topMax > 0) {
             topTarget.r = clamp(topDesiredR, Math.min(R * 0.004, topMax), topMax);
+          } else {
+            topTarget.r = Math.max(0.35, R * 0.004);
           }
           if (bottomMax > 0) {
             bottomTarget.r = clamp(bottomDesiredR, Math.min(R * 0.004, bottomMax), bottomMax);
+          } else {
+            bottomTarget.r = Math.max(0.35, R * 0.004);
           }
-          topTarget = fitDotInsideBlob(topTarget, R, true, padding);
-          bottomTarget = fitDotInsideBlob(bottomTarget, R, false, padding);
+          topTarget = fitDotInsideBlob(topTarget, R, true, padding, dividerPoints);
+          bottomTarget = fitDotInsideBlob(bottomTarget, R, false, padding, dividerPoints);
 
           if (globalDeform < 0.14) {
             const neutralT = clamp(1 - globalDeform / 0.14, 0, 1);
-            const neutralAxisX = baseDividerX(0, R);
+            const neutralAxisX = dividerXFromPointsAtY(dividerPoints, 0, R);
             const neutralTop = constrainDotToBlob(
               neutralAxisX,
               -0.5 * R,
               R,
               topTarget.r,
               true,
-              padding
+              padding,
+              dividerPoints
             );
             const neutralBottom = constrainDotToBlob(
               neutralAxisX,
@@ -937,13 +1118,14 @@
               R,
               bottomTarget.r,
               false,
-              padding
+              padding,
+              dividerPoints
             );
-            if (neutralTop) {
+            if (!dotUser.top.active && neutralTop) {
               topTarget.x = topTarget.x * (1 - neutralT) + neutralTop.x * neutralT;
               topTarget.y = topTarget.y * (1 - neutralT) + neutralTop.y * neutralT;
             }
-            if (neutralBottom) {
+            if (!dotUser.bottom.active && neutralBottom) {
               bottomTarget.x = bottomTarget.x * (1 - neutralT) + neutralBottom.x * neutralT;
               bottomTarget.y = bottomTarget.y * (1 - neutralT) + neutralBottom.y * neutralT;
             }
@@ -951,25 +1133,34 @@
 
           if (globalDeform < 0.08) {
             const neutralT = clamp(1 - globalDeform / 0.08, 0, 1);
-            const axisX = baseDividerX(0, R);
-            const topAligned = constrainDotToBlob(axisX, topTarget.y, R, topTarget.r, true, padding);
+            const axisX = dividerXFromPointsAtY(dividerPoints, 0, R);
+            const topAligned = constrainDotToBlob(
+              axisX,
+              topTarget.y,
+              R,
+              topTarget.r,
+              true,
+              padding,
+              dividerPoints
+            );
             const bottomAligned = constrainDotToBlob(
               axisX,
               bottomTarget.y,
               R,
               bottomTarget.r,
               false,
-              padding
+              padding,
+              dividerPoints
             );
 
-            if (topAligned) {
+            if (!dotUser.top.active && topAligned) {
               topTarget = {
                 x: topTarget.x * (1 - neutralT) + topAligned.x * neutralT,
                 y: topTarget.y * (1 - neutralT) + topAligned.y * neutralT,
                 r: topTarget.r,
               };
             }
-            if (bottomAligned) {
+            if (!dotUser.bottom.active && bottomAligned) {
               bottomTarget = {
                 x: bottomTarget.x * (1 - neutralT) + bottomAligned.x * neutralT,
                 y: bottomTarget.y * (1 - neutralT) + bottomAligned.y * neutralT,
@@ -978,8 +1169,23 @@
             }
           }
 
-          const topDot = stabilizeDotCenter(topTarget, "top", R, true, padding);
-          const bottomDot = stabilizeDotCenter(bottomTarget, "bottom", R, false, padding);
+          const topDot = stabilizeDotCenter(topTarget, "top", R, true, padding, dividerPoints);
+          const bottomDot = stabilizeDotCenter(
+            bottomTarget,
+            "bottom",
+            R,
+            false,
+            padding,
+            dividerPoints
+          );
+
+          if (dotUser.top.active) {
+            setDotUserPosition("top", topDot.x, topDot.y, R);
+          }
+          if (dotUser.bottom.active) {
+            setDotUserPosition("bottom", bottomDot.x, bottomDot.y, R);
+          }
+
           return { R, dividerPoints, topDot, bottomDot, padding };
         }
 
@@ -990,13 +1196,13 @@
           ctx.fill();
         }
 
-        function isInsideHost(x, y, R, isTop) {
+        function isInsideHost(x, y, R, isTop, dividerPoints) {
           if (!isInsideCircle(x, y, R)) return false;
-          const white = isWhiteAt(x, y, R);
+          const white = isWhiteAt(x, y, R, dividerPoints);
           return isTop ? white : !white;
         }
 
-        function rayBoundaryDistance(cx, cy, dirX, dirY, R, isTop) {
+        function rayBoundaryDistance(cx, cy, dirX, dirY, R, isTop, dividerPoints) {
           const cDot = cx * dirX + cy * dirY;
           const cSq = cx * cx + cy * cy;
           const disc = cDot * cDot + (R * R - cSq);
@@ -1009,7 +1215,7 @@
             const mid = (lo + hi) * 0.5;
             const px = cx + dirX * mid;
             const py = cy + dirY * mid;
-            if (isInsideHost(px, py, R, isTop)) {
+            if (isInsideHost(px, py, R, isTop, dividerPoints)) {
               lo = mid;
             } else {
               hi = mid;
@@ -1018,8 +1224,8 @@
           return lo;
         }
 
-        function getDotBlobPoints(dot, R, isTop, padding) {
-          const samples = 44;
+        function getDotBlobPoints(dot, R, isTop, padding, dividerPoints) {
+          const samples = 34;
           const avails = new Array(samples);
           let minAvail = Infinity;
           let maxAvail = 0;
@@ -1029,7 +1235,15 @@
             const angle = (i / samples) * TAU;
             const dirX = Math.cos(angle);
             const dirY = Math.sin(angle);
-            const boundaryDist = rayBoundaryDistance(dot.x, dot.y, dirX, dirY, R, isTop);
+            const boundaryDist = rayBoundaryDistance(
+              dot.x,
+              dot.y,
+              dirX,
+              dirY,
+              R,
+              isTop,
+              dividerPoints
+            );
             const avail = Math.max(0.35, boundaryDist - padding);
             avails[i] = avail;
             minAvail = Math.min(minAvail, avail);
@@ -1066,7 +1280,7 @@
             return clamp(radius, minRadius, Math.min(avail, expandCap));
           });
 
-          for (let pass = 0; pass < 4; pass += 1) {
+          for (let pass = 0; pass < 3; pass += 1) {
             const smoothed = new Array(samples);
             for (let i = 0; i < samples; i += 1) {
               const prev = radii[(i - 1 + samples) % samples];
@@ -1100,12 +1314,12 @@
           return { points, anisotropy, squeeze, deformGate };
         }
 
-        function drawDeformedDot(dot, R, isTop, padding) {
+        function drawDeformedDot(dot, R, isTop, padding, dividerPoints) {
           if (dot.r <= 0) return;
-          if (!isInsideHost(dot.x, dot.y, R, isTop)) {
+          if (!isInsideHost(dot.x, dot.y, R, isTop, dividerPoints)) {
             return;
           }
-          const profile = getDotBlobPoints(dot, R, isTop, padding);
+          const profile = getDotBlobPoints(dot, R, isTop, padding, dividerPoints);
           if (
             !profile ||
             profile.points.length < 3 ||
@@ -1174,9 +1388,9 @@
           appendBlackRegionPath(points, R);
         }
 
-        function strokeDotOutline(dot, R, isTop, padding) {
-          if (!isInsideHost(dot.x, dot.y, R, isTop)) return;
-          const profile = getDotBlobPoints(dot, R, isTop, padding);
+        function strokeDotOutline(dot, R, isTop, padding, dividerPoints) {
+          if (!isInsideHost(dot.x, dot.y, R, isTop, dividerPoints)) return;
+          const profile = getDotBlobPoints(dot, R, isTop, padding, dividerPoints);
           if (
             !profile ||
             profile.points.length < 3 ||
@@ -1220,13 +1434,25 @@
           ctx.lineCap = "round";
           ctx.strokeStyle = "rgba(255, 38, 38, 0.95)";
 
-          if (mode === "topDotResize") {
-            strokeDotOutline(geometryState.topDot, geometryState.R, true, geometryState.padding);
+          if (mode === "topDotMove") {
+            strokeDotOutline(
+              geometryState.topDot,
+              geometryState.R,
+              true,
+              geometryState.padding,
+              geometryState.dividerPoints
+            );
             ctx.restore();
             return;
           }
-          if (mode === "bottomDotResize") {
-            strokeDotOutline(geometryState.bottomDot, geometryState.R, false, geometryState.padding);
+          if (mode === "bottomDotMove") {
+            strokeDotOutline(
+              geometryState.bottomDot,
+              geometryState.R,
+              false,
+              geometryState.padding,
+              geometryState.dividerPoints
+            );
             ctx.restore();
             return;
           }
@@ -1261,6 +1487,7 @@
 
         function draw() {
           resizeCanvasToDisplaySize();
+          const stillEasing = easeStateTowardTarget();
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
           const w = canvas.width;
@@ -1296,9 +1523,20 @@
           ctx.fill();
 
           ctx.fillStyle = COLORS.black;
-          drawDeformedDot(g.topDot, g.R, true, g.padding);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(0, 0, g.R, 0, TAU);
+          appendBlackRegionPath(g.dividerPoints, g.R);
+          ctx.clip("evenodd");
+          drawDeformedDot(g.topDot, g.R, true, g.padding, g.dividerPoints);
+          ctx.restore();
+
           ctx.fillStyle = COLORS.white;
-          drawDeformedDot(g.bottomDot, g.R, false, g.padding);
+          ctx.save();
+          traceBlackRegionPath(g.dividerPoints, g.R);
+          ctx.clip();
+          drawDeformedDot(g.bottomDot, g.R, false, g.padding, g.dividerPoints);
+          ctx.restore();
 
           ctx.restore();
 
@@ -1312,6 +1550,9 @@
             drawSelectionRing(drag.mode, g);
           }
 
+          if (stillEasing) {
+            requestDraw();
+          }
         }
 
         function buildSnapshotCanvas(size = 1800) {
@@ -1473,57 +1714,65 @@
           drag.pointerId = e.pointerId;
           drag.start = local;
           drag.last = local;
-          drag.startWhitePush = state.whitePush;
-          drag.startBlackPush = state.blackPush;
-          drag.startWhiteLift = state.whiteLift;
-          drag.startBlackLift = state.blackLift;
-          drag.startWhiteLocalShiftX = state.whiteLocalShiftX;
-          drag.startBlackLocalShiftX = state.blackLocalShiftX;
-          drag.startWhiteFocusY = state.whiteFocusY;
-          drag.startBlackFocusY = state.blackFocusY;
-          drag.startTopScale = state.topDotScale;
-          drag.startBottomScale = state.bottomDotScale;
+          drag.startWhitePush = stateTarget.whitePush;
+          drag.startBlackPush = stateTarget.blackPush;
+          drag.startWhiteLift = stateTarget.whiteLift;
+          drag.startBlackLift = stateTarget.blackLift;
+          drag.startWhiteLocalShiftX = stateTarget.whiteLocalShiftX;
+          drag.startBlackLocalShiftX = stateTarget.blackLocalShiftX;
+          drag.startWhiteFocusY = stateTarget.whiteFocusY;
+          drag.startBlackFocusY = stateTarget.blackFocusY;
           drag.grabYNorm = clamp(local.y / g.R, -1, 1);
           const influence = getGrabInfluence(drag.grabYNorm);
           drag.topInfluence = influence.top;
           drag.bottomInfluence = influence.bottom;
           drag.activeDotCenter = { x: 0, y: 0 };
-          drag.activeDotStartDist = 0;
+          drag.activeDotOffset = { x: 0, y: 0 };
 
-          const resizePad = DOT_RESIZE_INNER_PAD_CSS * getCanvasScale();
+          const hitPad = DOT_DRAG_HIT_PAD_CSS * getCanvasScale();
           const topDist = Math.hypot(local.x - g.topDot.x, local.y - g.topDot.y);
           const bottomDist = Math.hypot(local.x - g.bottomDot.x, local.y - g.bottomDot.y);
-          const topResizeR = g.topDot.r + resizePad;
-          const bottomResizeR = g.bottomDot.r + resizePad;
-          const insideTopDot = topDist <= topResizeR;
-          const insideBottomDot = bottomDist <= bottomResizeR;
+          const topHitR = g.topDot.r + hitPad;
+          const bottomHitR = g.bottomDot.r + hitPad;
+          const insideTopDot = topDist <= topHitR;
+          const insideBottomDot = bottomDist <= bottomHitR;
 
           if (insideTopDot || insideBottomDot) {
             let selected = "top";
             if (!insideTopDot) {
               selected = "bottom";
             } else if (insideBottomDot) {
-              const topNorm = topDist / Math.max(1e-6, topResizeR);
-              const bottomNorm = bottomDist / Math.max(1e-6, bottomResizeR);
+              const topNorm = topDist / Math.max(1e-6, topHitR);
+              const bottomNorm = bottomDist / Math.max(1e-6, bottomHitR);
               selected = topNorm <= bottomNorm ? "top" : "bottom";
             }
-            drag.mode = selected === "top" ? "topDotResize" : "bottomDotResize";
+            drag.mode = selected === "top" ? "topDotMove" : "bottomDotMove";
             drag.activeDotCenter =
               selected === "top" ? { x: g.topDot.x, y: g.topDot.y } : { x: g.bottomDot.x, y: g.bottomDot.y };
-            drag.activeDotStartDist = selected === "top" ? topDist : bottomDist;
+            drag.activeDotOffset = {
+              x: local.x - drag.activeDotCenter.x,
+              y: local.y - drag.activeDotCenter.y,
+            };
+            setDotUserPosition(
+              selected,
+              drag.activeDotCenter.x,
+              drag.activeDotCenter.y,
+              g.R
+            );
           } else {
-            drag.mode = isWhiteAt(local.x, local.y, g.R) ? "white" : "black";
+            drag.mode = isWhiteAt(local.x, local.y, g.R, g.dividerPoints) ? "white" : "black";
           }
 
           if (drag.mode === "white") {
-            state.whiteFocusY = drag.grabYNorm;
-            drag.startWhiteFocusY = state.whiteFocusY;
+            stateTarget.whiteFocusY = drag.grabYNorm;
+            drag.startWhiteFocusY = stateTarget.whiteFocusY;
           } else if (drag.mode === "black") {
-            state.blackFocusY = drag.grabYNorm;
-            drag.startBlackFocusY = state.blackFocusY;
+            stateTarget.blackFocusY = drag.grabYNorm;
+            drag.startBlackFocusY = stateTarget.blackFocusY;
           }
 
           canvas.setPointerCapture(e.pointerId);
+          requestDraw();
         });
 
         canvas.addEventListener("pointermove", (e) => {
@@ -1535,110 +1784,91 @@
           const dy = local.y - drag.start.y;
 
           if (drag.mode === "white" || drag.mode === "black") {
-            const localHorizontal = dx / (0.72 * R);
-            const localVertical = dy / (0.5 * R);
-            const globalHorizontal = dx / (1.38 * R);
-            const globalVertical = dy / (0.56 * R);
-            const verticalRatioDrive = globalVertical * 0.26;
+            const localHorizontal = dx / (0.82 * R);
+            const localVertical = dy / (0.58 * R);
+            const globalHorizontal = dx / (1.46 * R);
+            const globalVertical = dy / (0.64 * R);
+            const verticalRatioDrive = globalVertical * 0.2;
 
             if (drag.mode === "white") {
-              const topGain = 0.35 + 1.15 * drag.topInfluence;
-              const bottomGain = 0.18 + 0.36 * drag.bottomInfluence;
+              const topGain = 0.3 + 1.02 * drag.topInfluence;
+              const bottomGain = 0.14 + 0.28 * drag.bottomInfluence;
 
-              state.whiteLocalShiftX = clamp(
-                drag.startWhiteLocalShiftX + localHorizontal * 1.06,
-                -1.55,
-                1.55
+              stateTarget.whiteLocalShiftX = clamp(
+                drag.startWhiteLocalShiftX + localHorizontal * 0.92,
+                -1.35,
+                1.35
               );
-              state.whiteFocusY = clamp(drag.startWhiteFocusY + localVertical * 1.35, -1.18, 1.18);
-              state.whitePush = clamp(
-                drag.startWhitePush + globalHorizontal * topGain + verticalRatioDrive * 0.62,
-                0,
-                1
+              stateTarget.whiteFocusY = clamp(drag.startWhiteFocusY + localVertical * 1.18, -1.08, 1.08);
+              stateTarget.whitePush = clampPush(
+                drag.startWhitePush + globalHorizontal * topGain + verticalRatioDrive * 0.62
               );
-              state.blackPush = clamp(
+              stateTarget.blackPush = clampPush(
                 drag.startBlackPush -
                   globalHorizontal * bottomGain * 0.42 -
-                  verticalRatioDrive * 0.58,
-                0,
-                1
+                  verticalRatioDrive * 0.58
               );
-              state.whiteLift = clamp(
-                drag.startWhiteLift + globalVertical * (1.35 + 0.8 * drag.topInfluence),
+              stateTarget.whiteLift = clamp(
+                drag.startWhiteLift + globalVertical * (1.14 + 0.58 * drag.topInfluence),
                 -1.45,
                 1.45
               );
-              state.blackLift = clamp(
-                drag.startBlackLift + globalVertical * (0.06 + 0.14 * drag.bottomInfluence),
+              stateTarget.blackLift = clamp(
+                drag.startBlackLift + globalVertical * (0.05 + 0.11 * drag.bottomInfluence),
                 -1.45,
                 1.45
               );
             } else {
-              const bottomGain = 0.35 + 1.15 * drag.bottomInfluence;
-              const topGain = 0.18 + 0.36 * drag.topInfluence;
+              const bottomGain = 0.3 + 1.02 * drag.bottomInfluence;
+              const topGain = 0.14 + 0.28 * drag.topInfluence;
 
-              state.blackLocalShiftX = clamp(
-                drag.startBlackLocalShiftX - localHorizontal * 1.06,
-                -1.55,
-                1.55
+              stateTarget.blackLocalShiftX = clamp(
+                drag.startBlackLocalShiftX - localHorizontal * 0.92,
+                -1.35,
+                1.35
               );
-              state.blackFocusY = clamp(drag.startBlackFocusY + localVertical * 1.35, -1.18, 1.18);
-              state.blackPush = clamp(
-                drag.startBlackPush - globalHorizontal * bottomGain + verticalRatioDrive * 0.62,
-                0,
-                1
+              stateTarget.blackFocusY = clamp(drag.startBlackFocusY + localVertical * 1.18, -1.08, 1.08);
+              stateTarget.blackPush = clampPush(
+                drag.startBlackPush - globalHorizontal * bottomGain + verticalRatioDrive * 0.62
               );
-              state.whitePush = clamp(
-                drag.startWhitePush + globalHorizontal * topGain * 0.42 + verticalRatioDrive * 0.58,
-                0,
-                1
+              stateTarget.whitePush = clampPush(
+                drag.startWhitePush + globalHorizontal * topGain * 0.42 + verticalRatioDrive * 0.58
               );
-              state.blackLift = clamp(
-                drag.startBlackLift + globalVertical * (1.35 + 0.8 * drag.bottomInfluence),
+              stateTarget.blackLift = clamp(
+                drag.startBlackLift + globalVertical * (1.14 + 0.58 * drag.bottomInfluence),
                 -1.45,
                 1.45
               );
-              state.whiteLift = clamp(
-                drag.startWhiteLift + globalVertical * (0.06 + 0.14 * drag.topInfluence),
+              stateTarget.whiteLift = clamp(
+                drag.startWhiteLift + globalVertical * (0.05 + 0.11 * drag.topInfluence),
                 -1.45,
                 1.45
               );
             }
             drag.last = local;
-          } else if (drag.mode === "topDotResize") {
-            const currentDist = Math.hypot(
-              local.x - drag.activeDotCenter.x,
-              local.y - drag.activeDotCenter.y
-            );
-            const radialDelta = currentDist - drag.activeDotStartDist;
-            state.topDotScale = clamp(drag.startTopScale + radialDelta / (0.46 * R), 0.04, 7.4);
-            const overflow = Math.max(0, state.topDotScale - 3.1);
-            const deformT = clamp(overflow / 3.4, 0, 1);
-            state.whitePush = clamp(drag.startWhitePush + deformT * 0.35, 0, 1);
-            state.blackPush = clamp(drag.startBlackPush - deformT * 0.35, 0, 1);
-            state.whiteLift = clamp(drag.startWhiteLift - deformT * 0.12, -1.45, 1.45);
-            state.blackLift = clamp(drag.startBlackLift - deformT * 0.03, -1.45, 1.45);
-          } else if (drag.mode === "bottomDotResize") {
-            const currentDist = Math.hypot(
-              local.x - drag.activeDotCenter.x,
-              local.y - drag.activeDotCenter.y
-            );
-            const radialDelta = currentDist - drag.activeDotStartDist;
-            state.bottomDotScale = clamp(drag.startBottomScale + radialDelta / (0.46 * R), 0.04, 7.4);
-            const overflow = Math.max(0, state.bottomDotScale - 3.1);
-            const deformT = clamp(overflow / 3.4, 0, 1);
-            state.blackPush = clamp(drag.startBlackPush + deformT * 0.35, 0, 1);
-            state.whitePush = clamp(drag.startWhitePush - deformT * 0.35, 0, 1);
-            state.blackLift = clamp(drag.startBlackLift + deformT * 0.12, -1.45, 1.45);
-            state.whiteLift = clamp(drag.startWhiteLift + deformT * 0.03, -1.45, 1.45);
+          } else if (drag.mode === "topDotMove" || drag.mode === "bottomDotMove") {
+            const key = drag.mode === "topDotMove" ? "top" : "bottom";
+            const desiredX = local.x - drag.activeDotOffset.x;
+            const desiredY = local.y - drag.activeDotOffset.y;
+            setDotUserPosition(key, desiredX, desiredY, R);
           }
 
           requestDraw();
         });
 
         function endDrag(e) {
-          if (!drag.active || e.pointerId !== drag.pointerId) return;
+          if (!drag.active) return;
+          if (e && typeof e.pointerId === "number" && e.pointerId !== drag.pointerId) return;
           drag.active = false;
+          if (
+            drag.pointerId != null &&
+            typeof canvas.hasPointerCapture === "function" &&
+            canvas.hasPointerCapture(drag.pointerId)
+          ) {
+            try {
+              canvas.releasePointerCapture(drag.pointerId);
+            } catch (_) {}
+          }
           drag.pointerId = null;
           drag.mode = null;
           requestDraw();
@@ -1646,6 +1876,8 @@
 
         canvas.addEventListener("pointerup", endDrag);
         canvas.addEventListener("pointercancel", endDrag);
+        canvas.addEventListener("lostpointercapture", () => endDrag());
+        window.addEventListener("blur", () => endDrag());
         window.addEventListener("resize", requestDraw, { passive: true });
         saveShotButton.addEventListener("click", captureMoodSymbol);
         window.addEventListener("keydown", (event) => {
