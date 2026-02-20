@@ -785,21 +785,34 @@
           const white = isWhiteAt(x, y, R, dividerPoints);
           if ((isTop && !white) || (!isTop && white)) return 0;
           const dOuter = R - Math.hypot(x, y);
-          const dDivider = dividerNormalDistanceFromPoints(x, y, R, dividerPoints);
-          return Math.max(0, Math.min(dOuter, dDivider) - padding);
+          const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
+          const dDivider = Math.abs(x - dividerX);
+          const coarseRoom = Math.max(0, Math.min(dOuter, dDivider) - padding);
+
+          const raySamples = 20;
+          let nearestEdge = Infinity;
+          for (let i = 0; i < raySamples; i += 1) {
+            const angle = (i / raySamples) * TAU;
+            const dirX = Math.cos(angle);
+            const dirY = Math.sin(angle);
+            const boundaryDist = rayBoundaryDistance(x, y, dirX, dirY, R, isTop, dividerPoints);
+            nearestEdge = Math.min(nearestEdge, boundaryDist);
+          }
+          const sampledRoom = Math.max(0, nearestEdge - padding);
+          return coarseRoom * 0.2 + sampledRoom * 0.8;
         }
 
         function constrainDotToBlob(targetX, targetY, R, r, isTop, padding, dividerPoints) {
-          const safePadding = padding * 1.4;
+          const safePadding = padding * 1.1;
           const safeOuterR = Math.max(0, R - (r + safePadding));
-          const steps = 180;
+          const steps = 260;
           let best = null;
 
           for (let i = 0; i <= steps; i += 1) {
             const y = -safeOuterR + (2 * safeOuterR * i) / steps;
             const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
             const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
-            const wall = (r + safePadding) * 1.08;
+            const wall = r + safePadding;
             let left = -outerX;
             let right = outerX;
 
@@ -824,12 +837,12 @@
         }
 
         function constrainDotXAtY(targetX, y, R, r, isTop, padding, dividerPoints) {
-          const safePadding = padding * 1.4;
+          const safePadding = padding * 1.1;
           const safeOuterR = Math.max(0, R - (r + safePadding));
           if (Math.abs(y) > safeOuterR) return null;
           const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
           const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
-          const wall = (r + safePadding) * 1.08;
+          const wall = r + safePadding;
           let left = -outerX;
           let right = outerX;
           if (isTop) {
@@ -889,7 +902,7 @@
           const follow = isDraggingDot
             ? clamp(0.74 + distN * 0.18, 0.74, 0.92)
             : clamp(0.14 + distN * 0.3, 0.14, 0.42);
-          const rFollow = isDraggingDot ? 0.44 : 0.24;
+          const rFollow = isDraggingDot ? 0.72 : 0.3;
 
           memory.x += (fittedTarget.x - memory.x) * follow;
           memory.y += (fittedTarget.y - memory.y) * follow;
@@ -1093,12 +1106,13 @@
             padding,
             dividerPoints
           );
-          const dotBaseRadius = R * 0.12;
-          const topRoomScale = clamp(topRoom / Math.max(1e-6, 0.5 * R), 0.03, 2.4);
-          const bottomRoomScale = clamp(bottomRoom / Math.max(1e-6, 0.5 * R), 0.03, 2.4);
-          const loadDotBoost = 1 + 0.1 * clamp(1 - globalDeform / 0.2, 0, 1);
-          const topDesiredR = dotBaseRadius * Math.pow(topRoomScale, 0.76) * loadDotBoost;
-          const bottomDesiredR = dotBaseRadius * Math.pow(bottomRoomScale, 0.76) * loadDotBoost;
+          const dotLaunchRadius = R * 0.132;
+          const launchRoom = Math.max(1e-6, 0.5 * R - padding);
+          const topRoomScale = clamp(topRoom / launchRoom, 0.03, 2.5);
+          const bottomRoomScale = clamp(bottomRoom / launchRoom, 0.03, 2.5);
+          const roomToRadiusScale = (ratio) => Math.pow(ratio, 1.65);
+          const topDesiredR = dotLaunchRadius * roomToRadiusScale(topRoomScale);
+          const bottomDesiredR = dotLaunchRadius * roomToRadiusScale(bottomRoomScale);
           const topMax = Math.min(topRoom * 0.96, R * 0.38);
           const bottomMax = Math.min(bottomRoom * 0.96, R * 0.38);
           if (topMax > 0) {
