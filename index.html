@@ -100,6 +100,11 @@
           activeDotStartDist: 0,
         };
 
+        const dotMemory = {
+          top: null,
+          bottom: null,
+        };
+
         function clamp(n, min, max) {
           return Math.min(max, Math.max(min, n));
         }
@@ -253,6 +258,13 @@
           };
         }
 
+        function getGlobalDeformAmount() {
+          const pushDelta =
+            Math.max(Math.abs(state.whitePush - 0.5), Math.abs(state.blackPush - 0.5)) * 2;
+          const liftDelta = Math.max(Math.abs(state.whiteLift), Math.abs(state.blackLift));
+          return clamp(Math.max(pushDelta, liftDelta), 0, 1);
+        }
+
         function buildDivider(R, steps = 720) {
           const points = [];
           for (let i = 0; i <= steps; i += 1) {
@@ -286,14 +298,20 @@
 
         function findDotAuto(R, region, scaleFactor, padding, lobeCenters) {
           const isTop = region === "top";
-          const yAnchor = isTop ? lobeCenters.topCenter + 0.06 * R : lobeCenters.bottomCenter - 0.06 * R;
-          const xAnchor = dividerXAtY(yAnchor, R) + (isTop ? -0.16 : 0.24) * R;
-          const spanX = 0.62 * R;
-          const spanY = 0.5 * R;
-          const cols = 34;
-          const rows = 34;
+          const dominance = clamp(state.whitePush - state.blackPush, -1, 1);
+          const yAnchor = isTop ? lobeCenters.topCenter - 0.08 * R : lobeCenters.bottomCenter + 0.08 * R;
+          const dividerAtAnchor = dividerXAtY(yAnchor, R);
+          const xAnchor =
+            dividerAtAnchor +
+            (isTop ? -0.04 : 0.04) * R +
+            dominance * (isTop ? 0.16 : -0.16) * R;
+          const spanX = 0.74 * R;
+          const spanY = 0.54 * R;
+          const cols = 46;
+          const rows = 46;
 
           let best = null;
+          const pool = [];
 
           for (let iy = 0; iy <= rows; iy += 1) {
             const y = yAnchor - spanY * 0.5 + (spanY * iy) / rows;
@@ -310,11 +328,16 @@
               const maxR = Math.min(dOuter, dDivider) - padding;
               if (maxR <= 0) continue;
 
-              const pull = 0.18 * Math.hypot((x - xAnchor) / R, (y - yAnchor) / R) * R;
-              const score = maxR - pull;
+              const roomN = maxR / R;
+              const depthN = dDivider / R;
+              const verticalN = 1 - clamp(Math.abs(y - yAnchor) / (0.48 * R), 0, 1);
+              const anchorN = 1 - clamp(Math.hypot((x - xAnchor) / spanX, (y - yAnchor) / spanY), 0, 1);
+              const score = 1.45 * roomN + 0.22 * depthN + 0.2 * verticalN + 0.08 * anchorN;
+              const candidate = { x, y, maxR, score };
+              pool.push(candidate);
 
               if (!best || score > best.score) {
-                best = { x, y, maxR, score };
+                best = candidate;
               }
             }
           }
@@ -323,13 +346,39 @@
             return { x: xAnchor, y: yAnchor, r: R * 0.08, room: R * 0.08 };
           }
 
-          const maxAllowed = Math.min(best.maxR * 0.52, R * 0.19);
+          let chosen = best;
+          if (pool.length > 1) {
+            const cutoff = best.score - 0.12;
+            let wSum = 0;
+            let xSum = 0;
+            let ySum = 0;
+            let roomSum = 0;
+            for (let i = 0; i < pool.length; i += 1) {
+              const candidate = pool[i];
+              if (candidate.score < cutoff) continue;
+              const weight = Math.exp((candidate.score - best.score) * 10);
+              wSum += weight;
+              xSum += candidate.x * weight;
+              ySum += candidate.y * weight;
+              roomSum += candidate.maxR * weight;
+            }
+            if (wSum > 1e-6) {
+              chosen = {
+                x: xSum / wSum,
+                y: ySum / wSum,
+                maxR: roomSum / wSum,
+                score: best.score,
+              };
+            }
+          }
+
+          const maxAllowed = Math.min(chosen.maxR * 0.56, R * 0.21);
           const minAllowed = Math.min(R * 0.008, maxAllowed);
           return {
-            x: best.x,
-            y: best.y,
-            r: clamp(best.maxR * scaleFactor, minAllowed, maxAllowed),
-            room: best.maxR,
+            x: chosen.x,
+            y: chosen.y,
+            r: clamp(chosen.maxR * scaleFactor, minAllowed, maxAllowed),
+            room: chosen.maxR,
           };
         }
 
@@ -366,6 +415,33 @@
           return { x: best.x, y: best.y };
         }
 
+        function stabilizeDotCenter(targetDot, key, R, isTop, padding) {
+          const memory = dotMemory[key];
+          if (!memory) {
+            dotMemory[key] = { x: targetDot.x, y: targetDot.y };
+            return targetDot;
+          }
+
+          const isResizing =
+            (key === "top" && drag.active && drag.mode === "topDotResize") ||
+            (key === "bottom" && drag.active && drag.mode === "bottomDotResize");
+          const follow = isResizing ? 0.72 : 0.26;
+
+          memory.x += (targetDot.x - memory.x) * follow;
+          memory.y += (targetDot.y - memory.y) * follow;
+
+          const clamped = constrainDotToBlob(memory.x, memory.y, R, targetDot.r, isTop, padding);
+          if (clamped) {
+            memory.x = clamped.x;
+            memory.y = clamped.y;
+          } else {
+            memory.x = targetDot.x;
+            memory.y = targetDot.y;
+          }
+
+          return { x: memory.x, y: memory.y, r: targetDot.r };
+        }
+
         function geometry() {
           const R = getRadius();
           const padding = DOT_PADDING_CSS * getCanvasScale();
@@ -384,12 +460,15 @@
             false,
             padding
           );
-          const topDot = topPlaced
+          const topTarget = topPlaced
             ? { x: topPlaced.x, y: topPlaced.y, r: topAuto.r }
             : { x: topAuto.x, y: topAuto.y, r: topAuto.r };
-          const bottomDot = bottomPlaced
+          const bottomTarget = bottomPlaced
             ? { x: bottomPlaced.x, y: bottomPlaced.y, r: bottomAuto.r }
             : { x: bottomAuto.x, y: bottomAuto.y, r: bottomAuto.r };
+
+          const topDot = stabilizeDotCenter(topTarget, "top", R, true, padding);
+          const bottomDot = stabilizeDotCenter(bottomTarget, "bottom", R, false, padding);
           return { R, dividerPoints, topDot, bottomDot, padding };
         }
 
@@ -433,6 +512,7 @@
           const avails = new Array(samples);
           let minAvail = Infinity;
           let maxAvail = 0;
+          const baseRadius = Math.max(0.35, dot.r);
 
           for (let i = 0; i < samples; i += 1) {
             const angle = (i / samples) * TAU;
@@ -445,15 +525,37 @@
             maxAvail = Math.max(maxAvail, avail);
           }
 
-          const anisotropy = clamp((maxAvail - minAvail) / Math.max(1e-6, maxAvail), 0, 1);
-          const deformStrength = clamp(0.22 + 0.72 * anisotropy, 0.18, 0.88);
-          const minRadius = Math.max(0.35, dot.r * 0.22);
+          const avgAvail = avails.reduce((sum, value) => sum + value, 0) / samples;
+          const hostAnisotropy = clamp(
+            (maxAvail - minAvail) / Math.max(1e-6, avgAvail),
+            0,
+            1
+          );
+          const squeeze = clamp((baseRadius - minAvail) / Math.max(1e-6, baseRadius), 0, 1);
+          const globalDeform = getGlobalDeformAmount();
+          const deformGate = clamp((globalDeform - 0.02) / 0.2, 0, 1);
+          const shapeBlend = clamp(
+            (0.075 + 0.54 * hostAnisotropy + 0.31 * squeeze) * deformGate,
+            0,
+            0.82
+          );
+
+          const minRadius = Math.max(
+            0.28,
+            baseRadius * (1 - (0.48 * squeeze + 0.18 * hostAnisotropy) * deformGate)
+          );
+          const expandCap = baseRadius * (1 + 0.055 + 0.12 * shapeBlend);
+
           let radii = avails.map((avail) => {
-            const target = dot.r + (avail - dot.r) * deformStrength;
-            return clamp(target, minRadius, avail);
+            const localFactor = clamp(avail / Math.max(1e-6, avgAvail), 0.78, 1.24);
+            const profileMatch =
+              baseRadius * (1 + (localFactor - 1) * (shapeBlend * 0.64));
+            const wallFollow = baseRadius + (avail - baseRadius) * (0.14 * shapeBlend);
+            const radius = baseRadius * 0.24 + profileMatch * 0.54 + wallFollow * 0.22;
+            return clamp(radius, minRadius, Math.min(avail, expandCap));
           });
 
-          for (let pass = 0; pass < 2; pass += 1) {
+          for (let pass = 0; pass < 4; pass += 1) {
             const smoothed = new Array(samples);
             for (let i = 0; i < samples; i += 1) {
               const prev = radii[(i - 1 + samples) % samples];
@@ -473,13 +575,34 @@
               y: dot.y + Math.sin(angle) * radius,
             };
           }
-          return { points, anisotropy };
+          let minRadiusFinal = Infinity;
+          let maxRadiusFinal = 0;
+          for (let i = 0; i < samples; i += 1) {
+            minRadiusFinal = Math.min(minRadiusFinal, radii[i]);
+            maxRadiusFinal = Math.max(maxRadiusFinal, radii[i]);
+          }
+          const anisotropy = clamp(
+            (maxRadiusFinal - minRadiusFinal) / Math.max(1e-6, baseRadius),
+            0,
+            1
+          );
+          return { points, anisotropy, squeeze, deformGate };
         }
 
         function drawDeformedDot(dot, R, isTop, padding) {
           if (dot.r <= 0) return;
+          if (!isInsideHost(dot.x, dot.y, R, isTop)) {
+            drawCircle(dot.x, dot.y, dot.r);
+            return;
+          }
           const profile = getDotBlobPoints(dot, R, isTop, padding);
-          if (!profile || profile.points.length < 3 || profile.anisotropy < 0.03) {
+          if (
+            !profile ||
+            profile.points.length < 3 ||
+            (profile.deformGate < 0.03 ||
+              (profile.squeeze < 0.008 && profile.anisotropy < 0.025) ||
+              profile.anisotropy < 0.006)
+          ) {
             drawCircle(dot.x, dot.y, dot.r);
             return;
           }
@@ -654,7 +777,6 @@
             const vertical = dy / (0.84 * R);
             const topGain = 0.2 + 1.3 * drag.topInfluence;
             const bottomGain = 0.2 + 1.3 * drag.bottomInfluence;
-
             state.whitePush = clamp(drag.startWhitePush + horizontal * topGain, 0, 1);
             state.blackPush = clamp(drag.startBlackPush - horizontal * bottomGain, 0, 1);
             state.whiteLift = clamp(drag.startWhiteLift + vertical * topGain, -1, 1);
