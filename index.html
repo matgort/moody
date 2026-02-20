@@ -53,7 +53,7 @@
         font-size: clamp(10px, 1.02vw, 11px);
         line-height: 1.3;
         letter-spacing: 0.01em;
-        color: rgba(73, 45, 23, 0.44);
+        color: rgba(73, 45, 23, 0.46);
       }
 
       .symbol-stage {
@@ -111,7 +111,7 @@
         justify-content: center;
         width: 100%;
         font-size: clamp(10px, 1.02vw, 11px);
-        margin-top: 10px;
+        margin-top: 0;
       }
 
       .instruction-row .instruction {
@@ -176,13 +176,16 @@
 
       @media (max-width: 760px) {
         .app {
+          position: relative;
           gap: 10px;
+          justify-content: center;
           padding-top: calc(8px + env(safe-area-inset-top));
           padding-bottom: calc(10px + env(safe-area-inset-bottom));
         }
 
         .symbol-stage {
           width: min(94vw, 70svh, 620px);
+          margin-top: 0;
         }
 
         .date-stamp {
@@ -200,26 +203,30 @@
         }
 
         .meta {
-          width: min(94vw, 620px);
-          gap: 7px;
-          margin-top: clamp(74px, calc(10vh + 30px), 150px);
-          margin-bottom: calc(4px + env(safe-area-inset-bottom));
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          bottom: calc(6px + env(safe-area-inset-bottom));
+          width: min(98vw, 680px);
+          gap: 4px;
+          margin: 0;
         }
 
         .instruction {
-          font-size: clamp(14px, 3.9vw, 18px);
-          color: rgba(73, 45, 23, 0.74);
+          font-size: clamp(8px, 2.45vw, 11px);
+          color: rgba(73, 45, 23, 0.78);
+          white-space: nowrap;
         }
 
         .instruction-row .instruction {
-          max-width: 92vw;
+          max-width: 98vw;
         }
 
         .shot-btn {
-          font-size: clamp(14px, 3.9vw, 18px);
+          font-size: clamp(8px, 2.45vw, 11px);
           color: rgba(73, 45, 23, 0.74);
           border-color: rgba(73, 45, 23, 0.58);
-          padding: 4px 14px;
+          padding: 3px 11px;
         }
       }
     </style>
@@ -870,7 +877,7 @@
           const fittedTarget = fitDotInsideBlob(targetDot, R, isTop, padding, dividerPoints);
 
           if (!memory) {
-            dotMemory[key] = { x: fittedTarget.x, y: fittedTarget.y };
+            dotMemory[key] = { x: fittedTarget.x, y: fittedTarget.y, r: fittedTarget.r };
             return fittedTarget;
           }
 
@@ -882,12 +889,17 @@
           const follow = isDraggingDot
             ? clamp(0.74 + distN * 0.18, 0.74, 0.92)
             : clamp(0.14 + distN * 0.3, 0.14, 0.42);
+          const rFollow = isDraggingDot ? 0.44 : 0.24;
 
           memory.x += (fittedTarget.x - memory.x) * follow;
           memory.y += (fittedTarget.y - memory.y) * follow;
+          if (typeof memory.r !== "number") {
+            memory.r = fittedTarget.r;
+          }
+          memory.r += (fittedTarget.r - memory.r) * rFollow;
 
           const fittedMemory = fitDotInsideBlob(
-            { x: memory.x, y: memory.y, r: fittedTarget.r },
+            { x: memory.x, y: memory.y, r: memory.r },
             R,
             isTop,
             padding,
@@ -895,8 +907,9 @@
           );
           memory.x = fittedMemory.x;
           memory.y = fittedMemory.y;
+          memory.r = fittedMemory.r;
 
-          return { x: memory.x, y: memory.y, r: fittedMemory.r };
+          return { x: memory.x, y: memory.y, r: memory.r };
         }
 
         function geometry() {
@@ -1083,8 +1096,9 @@
           const dotBaseRadius = R * 0.12;
           const topRoomScale = clamp(topRoom / Math.max(1e-6, 0.5 * R), 0.03, 2.4);
           const bottomRoomScale = clamp(bottomRoom / Math.max(1e-6, 0.5 * R), 0.03, 2.4);
-          const topDesiredR = dotBaseRadius * topRoomScale;
-          const bottomDesiredR = dotBaseRadius * bottomRoomScale;
+          const loadDotBoost = 1 + 0.1 * clamp(1 - globalDeform / 0.2, 0, 1);
+          const topDesiredR = dotBaseRadius * Math.pow(topRoomScale, 0.76) * loadDotBoost;
+          const bottomDesiredR = dotBaseRadius * Math.pow(bottomRoomScale, 0.76) * loadDotBoost;
           const topMax = Math.min(topRoom * 0.96, R * 0.38);
           const bottomMax = Math.min(bottomRoom * 0.96, R * 0.38);
           if (topMax > 0) {
