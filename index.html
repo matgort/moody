@@ -1,0 +1,459 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Yin Yang Moods</title>
+    <style>
+      :root {
+        --bg: #a87444;
+        --black: #111111;
+        --white: #f6f1e6;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        display: grid;
+        place-items: center;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      .wrap {
+        width: min(86vmin, 640px);
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      .hint {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 14px;
+        padding: 0 16px;
+        text-align: center;
+        font-size: 12px;
+        color: rgba(0, 0, 0, 0.55);
+        user-select: none;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <canvas id="yy" aria-label="Interactive yin yang mood tracker"></canvas>
+    </main>
+    <div class="hint">Click + drag: lobes, inner circles, and dots. Wiggle while dragging to make it lumpier.</div>
+
+    <script>
+      (() => {
+        const TAU = Math.PI * 2;
+
+        const canvas = document.getElementById("yy");
+        const ctx = canvas.getContext("2d", { alpha: true });
+
+        const COLORS = {
+          bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim(),
+          black: getComputedStyle(document.documentElement).getPropertyValue("--black").trim(),
+          white: getComputedStyle(document.documentElement).getPropertyValue("--white").trim(),
+        };
+
+        const CIRCLE_SAMPLES = 140;
+
+        const state = {
+          blackness: 0.5, // 0..1 (0=all white, 1=all black)
+
+          // Big "comma" circles (top = white, bottom = black), as a fraction of R.
+          headTop: 0.5,
+          headBottom: 0.5,
+
+          // Dots (top dot is black, bottom dot is white), as a fraction of R.
+          dotTop: 0.12,
+          dotBottom: 0.12,
+
+          // Normalized blobby offsets (multiply by base radius when drawing)
+          headTopOffsets: new Float32Array(CIRCLE_SAMPLES),
+          headBottomOffsets: new Float32Array(CIRCLE_SAMPLES),
+          dotTopOffsets: new Float32Array(CIRCLE_SAMPLES),
+          dotBottomOffsets: new Float32Array(CIRCLE_SAMPLES),
+        };
+
+        const drag = {
+          active: false,
+          pointerId: null,
+          kind: null, // "lobe" | "headTop" | "headBottom" | "dotTop" | "dotBottom"
+          start: { x: 0, y: 0 },
+          startBlackness: 0.5,
+          startValue: 0,
+          lastMove: null,
+          lastMoveLen: 0,
+          lastMoveDx: 0,
+          lastMoveDy: 0,
+        };
+
+        function clamp(n, a, b) {
+          return Math.min(b, Math.max(a, n));
+        }
+
+        function lerp(a, b, t) {
+          return a + (b - a) * t;
+        }
+
+        function gaussianWeight(d, sigma) {
+          return Math.exp(-(d * d) / (2 * sigma * sigma));
+        }
+
+        function circularDistance(a, b, len) {
+          const d = Math.abs(a - b);
+          return Math.min(d, len - d);
+        }
+
+        function resizeCanvasToDisplaySize() {
+          const rect = canvas.getBoundingClientRect();
+          const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+          const w = Math.max(2, Math.round(rect.width * dpr));
+          const h = Math.max(2, Math.round(rect.height * dpr));
+          if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w;
+            canvas.height = h;
+          }
+        }
+
+        function getLocalPoint(e) {
+          const rect = canvas.getBoundingClientRect();
+          const sx = canvas.width / rect.width;
+          const sy = canvas.height / rect.height;
+          const x = (e.clientX - rect.left) * sx;
+          const y = (e.clientY - rect.top) * sy;
+          return { x: x - canvas.width / 2, y: y - canvas.height / 2 };
+        }
+
+        function getRadius() {
+          return Math.min(canvas.width, canvas.height) * 0.44;
+        }
+
+        function isInsideCircle(x, y, R) {
+          return x * x + y * y <= R * R;
+        }
+
+        function smoothCircular(arr, amount = 0.45) {
+          const n = arr.length;
+          if (n < 3) return;
+          const tmp = new Float32Array(n);
+          for (let i = 0; i < n; i++) {
+            const prev = arr[(i - 1 + n) % n];
+            const next = arr[(i + 1) % n];
+            tmp[i] = (prev + arr[i] + next) / 3;
+          }
+          for (let i = 0; i < n; i++) arr[i] = lerp(arr[i], tmp[i], amount);
+        }
+
+        function injectCircleNoise(offsets, angle, strengthNorm) {
+          const n = offsets.length;
+          const a = ((angle % TAU) + TAU) % TAU;
+          const idx = (a / TAU) * n;
+          const sigma = n * 0.08;
+          const max = 0.22;
+          for (let i = 0; i < n; i++) {
+            const d = circularDistance(i, idx, n);
+            const w = gaussianWeight(d, sigma);
+            offsets[i] += (Math.random() * 2 - 1) * strengthNorm * w;
+            offsets[i] = clamp(offsets[i], -max, max);
+          }
+          smoothCircular(offsets, 0.42);
+        }
+
+        function wiggleStrength(localNow, R) {
+          if (!drag.lastMove) {
+            drag.lastMove = localNow;
+            drag.lastMoveLen = 0;
+            drag.lastMoveDx = 0;
+            drag.lastMoveDy = 0;
+            return 0;
+          }
+
+          const dx = localNow.x - drag.lastMove.x;
+          const dy = localNow.y - drag.lastMove.y;
+          drag.lastMove = localNow;
+
+          const len = Math.hypot(dx, dy);
+          if (len < 0.001) return 0;
+
+          if (drag.lastMoveLen < 0.001) {
+            drag.lastMoveLen = len;
+            drag.lastMoveDx = dx;
+            drag.lastMoveDy = dy;
+            return 0;
+          }
+
+          const dot = clamp(
+            (dx * drag.lastMoveDx + dy * drag.lastMoveDy) / (len * drag.lastMoveLen),
+            -1,
+            1,
+          );
+          const dirChange = 1 - dot; // 0 smooth -> 2 sharp reversal
+          drag.lastMoveLen = len;
+          drag.lastMoveDx = dx;
+          drag.lastMoveDy = dy;
+
+          const wigglePx = dirChange * len;
+          const wiggleNorm = wigglePx / Math.max(1, R);
+          if (wigglePx < 0.8) return 0;
+          return clamp(wiggleNorm * 0.38, 0, 0.18);
+        }
+
+        function blobbyCirclePath(ctx2d, cx, cy, baseR, offsets) {
+          const n = offsets.length;
+          ctx2d.beginPath();
+          for (let i = 0; i <= n; i++) {
+            const j = i % n;
+            const a = (i / n) * TAU;
+            const o = offsets[j];
+            const r = Math.max(0, baseR * (1 + o));
+            const x = cx + Math.cos(a) * r;
+            const y = cy + Math.sin(a) * r;
+            if (i === 0) ctx2d.moveTo(x, y);
+            else ctx2d.lineTo(x, y);
+          }
+          ctx2d.closePath();
+        }
+
+        function geometry() {
+          const R = getRadius();
+          const shiftRange = R * 2; // lets either side truly reach 0%/100% without glitching
+          const splitX = (0.5 - state.blackness) * 2 * shiftRange;
+
+          const headTopR = clamp(state.headTop, 0, 1) * R;
+          const headBottomR = clamp(state.headBottom, 0, 1) * R;
+
+          const headTopC = { x: splitX, y: -R + headTopR };
+          const headBottomC = { x: splitX, y: R - headBottomR };
+
+          const dotTopR = Math.min(clamp(state.dotTop, 0, 1) * R, headTopR * 0.95);
+          const dotBottomR = Math.min(clamp(state.dotBottom, 0, 1) * R, headBottomR * 0.95);
+
+          return { R, splitX, headTopR, headBottomR, headTopC, headBottomC, dotTopR, dotBottomR };
+        }
+
+        function pickKind(local) {
+          const g = geometry();
+          if (!isInsideCircle(local.x, local.y, g.R)) return null;
+
+          const minHit = Math.max(14, g.R * 0.06);
+          const dTop = Math.hypot(local.x - g.headTopC.x, local.y - g.headTopC.y);
+          const dBottom = Math.hypot(local.x - g.headBottomC.x, local.y - g.headBottomC.y);
+
+          if (dTop <= Math.max(minHit, g.dotTopR * 1.05)) return "dotTop";
+          if (dBottom <= Math.max(minHit, g.dotBottomR * 1.05)) return "dotBottom";
+
+          if (dTop <= Math.max(minHit, g.headTopR * 1.02)) return "headTop";
+          if (dBottom <= Math.max(minHit, g.headBottomR * 1.02)) return "headBottom";
+
+          return "lobe";
+        }
+
+        function draw() {
+          resizeCanvasToDisplaySize();
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          const w = canvas.width;
+          const h = canvas.height;
+          const cx = w / 2;
+          const cy = h / 2;
+          const g = geometry();
+
+          const lineWidth = Math.max(2, g.R * 0.02);
+
+          // Outer shadow
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.28)";
+          ctx.shadowBlur = Math.max(10, g.R * 0.08);
+          ctx.shadowOffsetY = Math.max(6, g.R * 0.03);
+          ctx.beginPath();
+          ctx.arc(cx, cy, g.R, 0, TAU);
+          ctx.fillStyle = "rgba(0,0,0,0)";
+          ctx.fill();
+          ctx.restore();
+
+          // Clip to the main circle for all internal drawing.
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, g.R, 0, TAU);
+          ctx.clip();
+
+          // Base split: left white, right black (vertical split that slides).
+          ctx.fillStyle = COLORS.white;
+          ctx.fillRect(cx - g.R * 2, cy - g.R * 2, g.R * 4, g.R * 4);
+
+          ctx.fillStyle = COLORS.black;
+          ctx.fillRect(cx + g.splitX, cy - g.R * 2, g.R * 4, g.R * 4);
+
+          // The two big comma circles (always curvy). Top is white, bottom is black.
+          blobbyCirclePath(
+            ctx,
+            cx + g.headTopC.x,
+            cy + g.headTopC.y,
+            g.headTopR,
+            state.headTopOffsets,
+          );
+          ctx.fillStyle = COLORS.white;
+          ctx.fill();
+
+          blobbyCirclePath(
+            ctx,
+            cx + g.headBottomC.x,
+            cy + g.headBottomC.y,
+            g.headBottomR,
+            state.headBottomOffsets,
+          );
+          ctx.fillStyle = COLORS.black;
+          ctx.fill();
+
+          // Dots (always centered inside their respective comma circles).
+          blobbyCirclePath(
+            ctx,
+            cx + g.headTopC.x,
+            cy + g.headTopC.y,
+            g.dotTopR,
+            state.dotTopOffsets,
+          );
+          ctx.fillStyle = COLORS.black;
+          ctx.fill();
+
+          blobbyCirclePath(
+            ctx,
+            cx + g.headBottomC.x,
+            cy + g.headBottomC.y,
+            g.dotBottomR,
+            state.dotBottomOffsets,
+          );
+          ctx.fillStyle = COLORS.white;
+          ctx.fill();
+
+          ctx.restore();
+
+          // Outer ring
+          ctx.beginPath();
+          ctx.arc(cx, cy, g.R, 0, TAU);
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = "rgba(0,0,0,0.75)";
+          ctx.stroke();
+        }
+
+        function requestDraw() {
+          if (requestDraw._raf) return;
+          requestDraw._raf = requestAnimationFrame(() => {
+            requestDraw._raf = 0;
+            draw();
+          });
+        }
+
+        canvas.addEventListener("pointerdown", (e) => {
+          resizeCanvasToDisplaySize();
+          const local = getLocalPoint(e);
+          const kind = pickKind(local);
+          if (!kind) return;
+
+          drag.active = true;
+          drag.pointerId = e.pointerId;
+          drag.kind = kind;
+          drag.start = local;
+          drag.startBlackness = state.blackness;
+          drag.startValue = 0;
+          drag.lastMove = null;
+
+          if (kind === "headTop") drag.startValue = state.headTop;
+          else if (kind === "headBottom") drag.startValue = state.headBottom;
+          else if (kind === "dotTop") drag.startValue = state.dotTop;
+          else if (kind === "dotBottom") drag.startValue = state.dotBottom;
+
+          canvas.setPointerCapture(e.pointerId);
+        });
+
+        canvas.addEventListener("pointermove", (e) => {
+          if (!drag.active || e.pointerId !== drag.pointerId) return;
+          resizeCanvasToDisplaySize();
+
+          const local = getLocalPoint(e);
+          const g = geometry();
+          const dx = local.x - drag.start.x;
+
+          const strength = wiggleStrength(local, g.R);
+          const lobeDelta = dx / (4 * g.R);
+          const sizeDelta = (dx / (2 * g.R)) * 1.1;
+
+          if (drag.kind === "lobe") {
+            // Drag left => more black, drag right => more white.
+            state.blackness = clamp(drag.startBlackness - lobeDelta, 0, 1);
+
+            if (strength > 0) {
+              const center = local.y < 0 ? g.headTopC : g.headBottomC;
+              const offsets = local.y < 0 ? state.headTopOffsets : state.headBottomOffsets;
+              const a = Math.atan2(local.y - center.y, local.x - center.x);
+              injectCircleNoise(offsets, a, strength);
+            }
+          } else if (drag.kind === "headTop") {
+            state.headTop = clamp(drag.startValue + sizeDelta, 0, 1);
+            if (strength > 0) {
+              const center = geometry().headTopC;
+              const a = Math.atan2(local.y - center.y, local.x - center.x);
+              injectCircleNoise(state.headTopOffsets, a, strength);
+            }
+          } else if (drag.kind === "headBottom") {
+            state.headBottom = clamp(drag.startValue + sizeDelta, 0, 1);
+            if (strength > 0) {
+              const center = geometry().headBottomC;
+              const a = Math.atan2(local.y - center.y, local.x - center.x);
+              injectCircleNoise(state.headBottomOffsets, a, strength);
+            }
+          } else if (drag.kind === "dotTop") {
+            state.dotTop = clamp(drag.startValue + sizeDelta * 0.8, 0, 1);
+            if (strength > 0) {
+              const center = geometry().headTopC;
+              const a = Math.atan2(local.y - center.y, local.x - center.x);
+              injectCircleNoise(state.dotTopOffsets, a, strength);
+            }
+          } else if (drag.kind === "dotBottom") {
+            state.dotBottom = clamp(drag.startValue + sizeDelta * 0.8, 0, 1);
+            if (strength > 0) {
+              const center = geometry().headBottomC;
+              const a = Math.atan2(local.y - center.y, local.x - center.x);
+              injectCircleNoise(state.dotBottomOffsets, a, strength);
+            }
+          }
+
+          requestDraw();
+        });
+
+        function endDrag(e) {
+          if (!drag.active || e.pointerId !== drag.pointerId) return;
+          drag.active = false;
+          drag.pointerId = null;
+          drag.kind = null;
+          drag.lastMove = null;
+          requestDraw();
+        }
+
+        canvas.addEventListener("pointerup", endDrag);
+        canvas.addEventListener("pointercancel", endDrag);
+        window.addEventListener("resize", requestDraw, { passive: true });
+
+        requestDraw();
+      })();
+    </script>
+  </body>
+</html>
