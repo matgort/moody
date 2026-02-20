@@ -3,8 +3,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Yin Yang Moods</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Duality tracker</title>
     <style>
       :root {
         --bg: #a87444;
@@ -25,43 +25,39 @@
       body {
         margin: 0;
         background: var(--bg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px 16px;
+        min-height: 100svh;
+        min-height: 100dvh;
+        overscroll-behavior: none;
+        -webkit-text-size-adjust: 100%;
+        display: grid;
+        place-items: center;
         font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       }
 
       .app {
-        width: min(92vmin, 720px);
-        display: grid;
-        justify-items: center;
-        gap: 10px;
+        width: min(96vw, 980px);
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(12px, 2.2vh, 24px);
+        padding: calc(10px + env(safe-area-inset-top)) 0 calc(14px + env(safe-area-inset-bottom));
+        box-sizing: border-box;
       }
 
-      .title {
+      .instruction {
         margin: 0;
-        font-size: clamp(16px, 2vw, 22px);
-        line-height: 1;
-        font-weight: 700;
-        font-family: var(--condensed);
-        color: var(--text-subtle);
+        max-width: 68ch;
         text-align: center;
-        letter-spacing: 0.02em;
-        text-transform: none;
-      }
-
-      .subtitle {
-        margin: 0;
-        max-width: 56ch;
-        text-align: center;
-        font-size: clamp(12px, 1.4vw, 15px);
+        font-size: clamp(10px, 1.02vw, 11px);
         line-height: 1.3;
-        color: var(--text-subtle-soft);
+        letter-spacing: 0.01em;
+        color: rgba(73, 45, 23, 0.44);
       }
 
       .symbol-stage {
-        width: min(80vmin, 620px);
+        width: min(88vw, 74svh, 760px);
         position: relative;
       }
 
@@ -76,26 +72,95 @@
         position: absolute;
         z-index: 2;
         font-family: var(--condensed);
-        font-size: clamp(28px, 4.8vmin, 62px);
+        font-size: clamp(14px, 2.8vmin, 30px);
+        font-weight: 700;
         line-height: 1;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.028em;
         text-transform: uppercase;
         user-select: none;
         pointer-events: none;
       }
 
       .date-top {
-        top: -1.5%;
-        right: -1.5%;
+        top: -3.6%;
+        right: -2.8%;
         color: rgba(246, 241, 230, 0.96);
       }
 
       .date-bottom {
-        bottom: 0.5%;
-        left: -1.5%;
+        bottom: -3.6%;
+        left: -2.8%;
         transform: rotate(180deg);
         transform-origin: center;
         color: rgba(17, 17, 17, 0.94);
+      }
+
+      .meta {
+        width: min(94vw, 760px);
+        display: grid;
+        justify-items: center;
+        gap: 5px;
+      }
+
+      .instruction-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        font-size: clamp(10px, 1.02vw, 11px);
+        margin-top: 4px;
+      }
+
+      .instruction-row .instruction {
+        max-width: 68ch;
+        white-space: normal;
+      }
+
+      .button-row {
+        display: grid;
+        place-items: center;
+        width: 100%;
+      }
+
+      .shot-btn {
+        border: 1px solid rgba(73, 45, 23, 0.34);
+        background: transparent;
+        color: rgba(73, 45, 23, 0.44);
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-family: inherit;
+        font-size: clamp(10px, 1.02vw, 11px);
+        font-weight: 400;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+      }
+
+      .shot-btn:hover {
+        background: rgba(73, 45, 23, 0.08);
+      }
+
+      .shot-btn:active {
+        background: rgba(73, 45, 23, 0.12);
+      }
+
+      .shot-btn.is-saving {
+        opacity: 0.75;
+      }
+
+      .shot-btn:focus-visible {
+        outline: 2px solid rgba(17, 17, 17, 0.4);
+        outline-offset: 2px;
+      }
+
+      .save-status {
+        min-height: 1em;
+        margin: 0;
+        font-size: clamp(9px, 0.92vw, 10px);
+        color: rgba(73, 45, 23, 0.38);
       }
 
       canvas {
@@ -103,21 +168,70 @@
         height: 100%;
         display: block;
         touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      @media (max-width: 760px) {
+        .app {
+          gap: 10px;
+          padding-top: calc(8px + env(safe-area-inset-top));
+          padding-bottom: calc(10px + env(safe-area-inset-bottom));
+        }
+
+        .symbol-stage {
+          width: min(94vw, 70svh, 620px);
+        }
+
+        .date-stamp {
+          font-size: clamp(12px, 2.2vmin, 20px);
+        }
+
+        .date-top {
+          top: -3%;
+          right: -2.1%;
+        }
+
+        .date-bottom {
+          bottom: -3%;
+          left: -2.1%;
+        }
+
+        .meta {
+          width: min(94vw, 620px);
+          gap: 4px;
+        }
+
+        .instruction {
+          font-size: clamp(10px, 2.8vw, 11px);
+        }
+
+        .instruction-row .instruction {
+          max-width: 56ch;
+        }
       }
     </style>
   </head>
   <body>
     <main class="app">
-      <h1 class="title">Duality tracker</h1>
-      <p class="subtitle">
-        create a symbol that shows your mood, the balance within you of light and dark today
-      </p>
       <section class="symbol-stage" aria-label="Duality symbol with date">
         <div class="date-stamp date-top" id="dateTop"></div>
         <section class="wrap">
           <canvas id="yy" aria-label="Interactive yin yang mood tracker"></canvas>
         </section>
         <div class="date-stamp date-bottom" id="dateBottom"></div>
+      </section>
+      <section class="meta">
+        <p class="instruction">
+          Click and drag on each unique element of the symbol
+        </p>
+        <p class="instruction">make it reflect the balance of light and dark within you today</p>
+        <div class="instruction-row">
+          <p class="instruction">take a screenshot to track your daily moods and perceptions of self</p>
+        </div>
+        <div class="button-row">
+          <button class="shot-btn" id="saveShot" type="button">screenshot</button>
+        </div>
+        <p class="save-status" id="saveStatus" aria-live="polite"></p>
       </section>
     </main>
 
@@ -127,7 +241,19 @@
         const canvas = document.getElementById("yy");
         const dateTop = document.getElementById("dateTop");
         const dateBottom = document.getElementById("dateBottom");
+        const saveShotButton = document.getElementById("saveShot");
+        const saveStatus = document.getElementById("saveStatus");
         const ctx = canvas.getContext("2d", { alpha: true });
+        const rootStyles = getComputedStyle(document.documentElement);
+        const CONDENSED_FONT_STACK =
+          '"Futura-CondensedExtraBold","Futura Condensed","Avenir Next Condensed","Arial Narrow","Roboto Condensed","Impact",sans-serif';
+        const isIOSLike =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const saveState = {
+          isSaving: false,
+          statusTimeout: 0,
+        };
 
         function formatDisplayDate(date = new Date()) {
           const parts = new Intl.DateTimeFormat("en-US", {
@@ -147,6 +273,33 @@
           dateBottom.textContent = stamp;
         }
         renderDateStamps();
+        window.setInterval(renderDateStamps, 60_000);
+
+        function formatFilenameStamp(date = new Date()) {
+          const year = String(date.getFullYear());
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const hour = String(date.getHours()).padStart(2, "0");
+          const minute = String(date.getMinutes()).padStart(2, "0");
+          const second = String(date.getSeconds()).padStart(2, "0");
+          return {
+            date: `${year}-${month}-${day}`,
+            time: `${hour}-${minute}-${second}`,
+          };
+        }
+
+        function setSaveStatus(message) {
+          saveStatus.textContent = message;
+          if (saveState.statusTimeout) {
+            clearTimeout(saveState.statusTimeout);
+            saveState.statusTimeout = 0;
+          }
+          if (!message) return;
+          saveState.statusTimeout = window.setTimeout(() => {
+            saveStatus.textContent = "";
+            saveState.statusTimeout = 0;
+          }, 2600);
+        }
 
         const COLORS = {
           black: getComputedStyle(document.documentElement).getPropertyValue("--black").trim(),
@@ -1160,6 +1313,147 @@
 
         }
 
+        function buildSnapshotCanvas(size = 1800) {
+          draw();
+          renderDateStamps();
+          const snapshot = document.createElement("canvas");
+          snapshot.width = size;
+          snapshot.height = size;
+          const snapshotCtx = snapshot.getContext("2d", { alpha: false });
+          const bgColor = rootStyles.getPropertyValue("--bg").trim() || "#a87444";
+          snapshotCtx.fillStyle = bgColor;
+          snapshotCtx.fillRect(0, 0, size, size);
+
+          const symbolFrame = size * 0.8;
+          const symbolX = (size - symbolFrame) * 0.5;
+          const symbolY = (size - symbolFrame) * 0.5;
+          snapshotCtx.drawImage(canvas, symbolX, symbolY, symbolFrame, symbolFrame);
+
+          const stamp = formatDisplayDate(new Date());
+          const fontSize = Math.round(size * 0.05);
+          const edgePadX = size * 0.055;
+          const topPadY = size * 0.045;
+          const bottomAnchorY = size * 0.965;
+          snapshotCtx.font = `700 ${fontSize}px ${CONDENSED_FONT_STACK}`;
+          snapshotCtx.textBaseline = "top";
+          snapshotCtx.textAlign = "right";
+          snapshotCtx.fillStyle = "rgba(246, 241, 230, 0.96)";
+          snapshotCtx.fillText(stamp, size - edgePadX, topPadY);
+
+          snapshotCtx.save();
+          const stampWidth = snapshotCtx.measureText(stamp).width;
+          snapshotCtx.translate(edgePadX + stampWidth, bottomAnchorY);
+          snapshotCtx.rotate(Math.PI);
+          snapshotCtx.textBaseline = "top";
+          snapshotCtx.textAlign = "left";
+          snapshotCtx.fillStyle = "rgba(17, 17, 17, 0.94)";
+          snapshotCtx.fillText(stamp, 0, 0);
+          snapshotCtx.restore();
+
+          return snapshot;
+        }
+
+        function canvasToBlob(canvasNode) {
+          return new Promise((resolve, reject) => {
+            if (typeof canvasNode.toBlob !== "function") {
+              try {
+                const dataUrl = canvasNode.toDataURL("image/png");
+                fetch(dataUrl)
+                  .then((response) => response.blob())
+                  .then(resolve)
+                  .catch(reject);
+                return;
+              } catch (error) {
+                reject(error);
+                return;
+              }
+            }
+            canvasNode.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error("Could not create image blob"));
+                return;
+              }
+              resolve(blob);
+            }, "image/png");
+          });
+        }
+
+        function downloadBlob(blob, fileName) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+
+        async function shareSnapshot(blob, fileName) {
+          if (!("share" in navigator)) return false;
+          if (typeof File !== "function") return false;
+          const file = new File([blob], fileName, { type: "image/png" });
+          if ("canShare" in navigator && !navigator.canShare({ files: [file] })) return false;
+          await navigator.share({
+            title: "Mood snapshot",
+            files: [file],
+          });
+          return true;
+        }
+
+        function openBlobInNewTab(blob) {
+          const url = URL.createObjectURL(blob);
+          const opened = window.open(url, "_blank", "noopener,noreferrer");
+          setTimeout(() => URL.revokeObjectURL(url), 6000);
+          return Boolean(opened);
+        }
+
+        async function captureMoodSymbol() {
+          if (saveState.isSaving) return;
+          saveState.isSaving = true;
+          saveShotButton.disabled = true;
+          saveShotButton.classList.add("is-saving");
+          setSaveStatus("Saving...");
+
+          try {
+            const now = new Date();
+            const fileStamp = formatFilenameStamp(now);
+            const fileName = `Mood - ${fileStamp.date} - ${fileStamp.time}.png`;
+            const snapshotCanvas = buildSnapshotCanvas();
+            const blob = await canvasToBlob(snapshotCanvas);
+
+            if (isIOSLike) {
+              try {
+                const shared = await shareSnapshot(blob, fileName);
+                if (shared) {
+                  setSaveStatus("Shared mood snapshot");
+                  return;
+                }
+              } catch (error) {
+                if (error?.name === "AbortError") {
+                  setSaveStatus("Share canceled");
+                  return;
+                }
+              }
+
+              const opened = openBlobInNewTab(blob);
+              if (opened) {
+                setSaveStatus("Opened snapshot tab");
+                return;
+              }
+            }
+
+            downloadBlob(blob, fileName);
+            setSaveStatus("Saved mood snapshot");
+          } catch (error) {
+            setSaveStatus("Couldn’t save snapshot");
+          } finally {
+            saveShotButton.disabled = false;
+            saveShotButton.classList.remove("is-saving");
+            saveState.isSaving = false;
+          }
+        }
+
         function requestDraw() {
           if (requestDraw._raf) return;
           requestDraw._raf = requestAnimationFrame(() => {
@@ -1352,6 +1646,14 @@
         canvas.addEventListener("pointerup", endDrag);
         canvas.addEventListener("pointercancel", endDrag);
         window.addEventListener("resize", requestDraw, { passive: true });
+        saveShotButton.addEventListener("click", captureMoodSymbol);
+        window.addEventListener("keydown", (event) => {
+          if (event.code !== "Space" || event.repeat) return;
+          const activeTag = (document.activeElement?.tagName || "").toLowerCase();
+          if (activeTag === "input" || activeTag === "textarea" || activeTag === "select") return;
+          event.preventDefault();
+          captureMoodSymbol();
+        });
 
         requestDraw();
       })();
