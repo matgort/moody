@@ -400,6 +400,109 @@
           ctx.fill();
         }
 
+        function isInsideHost(x, y, R, isTop) {
+          if (!isInsideCircle(x, y, R)) return false;
+          const white = isWhiteAt(x, y, R);
+          return isTop ? white : !white;
+        }
+
+        function rayBoundaryDistance(cx, cy, dirX, dirY, R, isTop) {
+          const cDot = cx * dirX + cy * dirY;
+          const cSq = cx * cx + cy * cy;
+          const disc = cDot * cDot + (R * R - cSq);
+          if (disc <= 0) return 0;
+          const outerT = -cDot + Math.sqrt(disc);
+          let lo = 0;
+          let hi = Math.max(1e-4, outerT + 1);
+
+          for (let i = 0; i < 14; i += 1) {
+            const mid = (lo + hi) * 0.5;
+            const px = cx + dirX * mid;
+            const py = cy + dirY * mid;
+            if (isInsideHost(px, py, R, isTop)) {
+              lo = mid;
+            } else {
+              hi = mid;
+            }
+          }
+          return lo;
+        }
+
+        function getDotBlobPoints(dot, R, isTop, padding) {
+          const samples = 44;
+          const avails = new Array(samples);
+          let minAvail = Infinity;
+          let maxAvail = 0;
+
+          for (let i = 0; i < samples; i += 1) {
+            const angle = (i / samples) * TAU;
+            const dirX = Math.cos(angle);
+            const dirY = Math.sin(angle);
+            const boundaryDist = rayBoundaryDistance(dot.x, dot.y, dirX, dirY, R, isTop);
+            const avail = Math.max(0.35, boundaryDist - padding);
+            avails[i] = avail;
+            minAvail = Math.min(minAvail, avail);
+            maxAvail = Math.max(maxAvail, avail);
+          }
+
+          const anisotropy = clamp((maxAvail - minAvail) / Math.max(1e-6, maxAvail), 0, 1);
+          const deformStrength = clamp(0.22 + 0.72 * anisotropy, 0.18, 0.88);
+          const minRadius = Math.max(0.35, dot.r * 0.22);
+          let radii = avails.map((avail) => {
+            const target = dot.r + (avail - dot.r) * deformStrength;
+            return clamp(target, minRadius, avail);
+          });
+
+          for (let pass = 0; pass < 2; pass += 1) {
+            const smoothed = new Array(samples);
+            for (let i = 0; i < samples; i += 1) {
+              const prev = radii[(i - 1 + samples) % samples];
+              const curr = radii[i];
+              const next = radii[(i + 1) % samples];
+              smoothed[i] = clamp((prev + curr * 2 + next) * 0.25, minRadius, avails[i]);
+            }
+            radii = smoothed;
+          }
+
+          const points = new Array(samples);
+          for (let i = 0; i < samples; i += 1) {
+            const angle = (i / samples) * TAU;
+            const radius = radii[i];
+            points[i] = {
+              x: dot.x + Math.cos(angle) * radius,
+              y: dot.y + Math.sin(angle) * radius,
+            };
+          }
+          return { points, anisotropy };
+        }
+
+        function drawDeformedDot(dot, R, isTop, padding) {
+          if (dot.r <= 0) return;
+          const profile = getDotBlobPoints(dot, R, isTop, padding);
+          if (!profile || profile.points.length < 3 || profile.anisotropy < 0.03) {
+            drawCircle(dot.x, dot.y, dot.r);
+            return;
+          }
+
+          const points = profile.points;
+          const n = points.length;
+          const startMid = {
+            x: (points[n - 1].x + points[0].x) * 0.5,
+            y: (points[n - 1].y + points[0].y) * 0.5,
+          };
+
+          ctx.beginPath();
+          ctx.moveTo(startMid.x, startMid.y);
+          for (let i = 0; i < n; i += 1) {
+            const curr = points[i];
+            const next = points[(i + 1) % n];
+            const mid = { x: (curr.x + next.x) * 0.5, y: (curr.y + next.y) * 0.5 };
+            ctx.quadraticCurveTo(curr.x, curr.y, mid.x, mid.y);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+
         function traceSmoothDivider(points) {
           if (points.length < 2) return;
           ctx.beginPath();
@@ -454,9 +557,9 @@
           ctx.fill();
 
           ctx.fillStyle = COLORS.black;
-          drawCircle(g.topDot.x, g.topDot.y, g.topDot.r);
+          drawDeformedDot(g.topDot, g.R, true, g.padding);
           ctx.fillStyle = COLORS.white;
-          drawCircle(g.bottomDot.x, g.bottomDot.y, g.bottomDot.r);
+          drawDeformedDot(g.bottomDot, g.R, false, g.padding);
 
           ctx.restore();
 
