@@ -445,6 +445,7 @@
         function geometry() {
           const R = getRadius();
           const padding = DOT_PADDING_CSS * getCanvasScale();
+          const globalDeform = getGlobalDeformAmount();
           const dividerPoints = buildDivider(R);
           const areaFractions = estimateColorFractions(R, dividerPoints);
           const dotScaleBias = getDotScaleBias(areaFractions);
@@ -460,12 +461,41 @@
             false,
             padding
           );
-          const topTarget = topPlaced
+          let topTarget = topPlaced
             ? { x: topPlaced.x, y: topPlaced.y, r: topAuto.r }
             : { x: topAuto.x, y: topAuto.y, r: topAuto.r };
-          const bottomTarget = bottomPlaced
+          let bottomTarget = bottomPlaced
             ? { x: bottomPlaced.x, y: bottomPlaced.y, r: bottomAuto.r }
             : { x: bottomAuto.x, y: bottomAuto.y, r: bottomAuto.r };
+
+          if (globalDeform < 0.08) {
+            const neutralT = clamp(1 - globalDeform / 0.08, 0, 1);
+            const axisX = dividerXAtY(0, R);
+            const topAligned = constrainDotToBlob(axisX, topTarget.y, R, topTarget.r, true, padding);
+            const bottomAligned = constrainDotToBlob(
+              axisX,
+              bottomTarget.y,
+              R,
+              bottomTarget.r,
+              false,
+              padding
+            );
+
+            if (topAligned) {
+              topTarget = {
+                x: topTarget.x * (1 - neutralT) + topAligned.x * neutralT,
+                y: topTarget.y * (1 - neutralT) + topAligned.y * neutralT,
+                r: topTarget.r,
+              };
+            }
+            if (bottomAligned) {
+              bottomTarget = {
+                x: bottomTarget.x * (1 - neutralT) + bottomAligned.x * neutralT,
+                y: bottomTarget.y * (1 - neutralT) + bottomAligned.y * neutralT,
+                r: bottomTarget.r,
+              };
+            }
+          }
 
           const topDot = stabilizeDotCenter(topTarget, "top", R, true, padding);
           const bottomDot = stabilizeDotCenter(bottomTarget, "bottom", R, false, padding);
