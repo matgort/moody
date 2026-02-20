@@ -162,14 +162,14 @@
 
         function getLobeCenters(R) {
           const half = R * 0.5;
-          let topCenter = -half + state.whiteLift * 0.34 * R;
-          let bottomCenter = half + state.blackLift * 0.34 * R;
+          let topCenter = -half + state.whiteLift * 0.46 * R;
+          let bottomCenter = half + state.blackLift * 0.46 * R;
 
-          topCenter = clamp(topCenter, -0.82 * R, -0.12 * R);
-          bottomCenter = clamp(bottomCenter, 0.12 * R, 0.82 * R);
+          topCenter = clamp(topCenter, -0.9 * R, -0.06 * R);
+          bottomCenter = clamp(bottomCenter, 0.06 * R, 0.9 * R);
 
-          const minGap = 0.36 * R;
-          const maxGap = 1.06 * R;
+          const minGap = 0.24 * R;
+          const maxGap = 1.22 * R;
           let gap = bottomCenter - topCenter;
           if (gap < minGap) {
             const spread = (minGap - gap) * 0.5;
@@ -223,9 +223,9 @@
             0.82 * topDrive * topProfile -
             0.82 * bottomDrive * bottomProfile +
             0.24 * (topDrive - bottomDrive) * middleProfile +
-            0.18 * state.whiteLift * topProfile -
-            0.18 * state.blackLift * bottomProfile +
-            0.1 * (state.whiteLift - state.blackLift) * t;
+            0.27 * state.whiteLift * topProfile -
+            0.27 * state.blackLift * bottomProfile +
+            0.16 * (state.whiteLift - state.blackLift) * t;
           deform *= envelope * R;
 
           let x = base + deform;
@@ -773,14 +773,15 @@
           const dy = local.y - drag.start.y;
 
           if (drag.mode === "white" || drag.mode === "black") {
-            const horizontal = dx / (0.78 * R);
-            const vertical = dy / (0.84 * R);
+            const horizontal = dx / (0.92 * R);
+            const vertical = dy / (0.56 * R);
             const topGain = 0.2 + 1.3 * drag.topInfluence;
             const bottomGain = 0.2 + 1.3 * drag.bottomInfluence;
+            const liftBoost = 1.22;
             state.whitePush = clamp(drag.startWhitePush + horizontal * topGain, 0, 1);
             state.blackPush = clamp(drag.startBlackPush - horizontal * bottomGain, 0, 1);
-            state.whiteLift = clamp(drag.startWhiteLift + vertical * topGain, -1, 1);
-            state.blackLift = clamp(drag.startBlackLift + vertical * bottomGain, -1, 1);
+            state.whiteLift = clamp(drag.startWhiteLift + vertical * topGain * liftBoost, -1, 1);
+            state.blackLift = clamp(drag.startBlackLift + vertical * bottomGain * liftBoost, -1, 1);
           } else if (drag.mode === "topDotResize") {
             const currentDist = Math.hypot(
               local.x - drag.activeDotCenter.x,
