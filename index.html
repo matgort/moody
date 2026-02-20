@@ -803,7 +803,7 @@
         }
 
         function constrainDotToBlob(targetX, targetY, R, r, isTop, padding, dividerPoints) {
-          const safePadding = padding * 1.1;
+          const safePadding = padding;
           const safeOuterR = Math.max(0, R - (r + safePadding));
           const steps = 260;
           let best = null;
@@ -837,7 +837,7 @@
         }
 
         function constrainDotXAtY(targetX, y, R, r, isTop, padding, dividerPoints) {
-          const safePadding = padding * 1.1;
+          const safePadding = padding;
           const safeOuterR = Math.max(0, R - (r + safePadding));
           if (Math.abs(y) > safeOuterR) return null;
           const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
