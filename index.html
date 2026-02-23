@@ -8,10 +8,10 @@
     <style>
       :root {
         --bg: #a87444;
-        --black: #111111;
-        --white: #f6f1e6;
+        --black: #8f61a8;
+        --white: #e01b8e;
+        --face-line: #231f20;
         --text-subtle: rgba(73, 45, 23, 0.72);
-        --text-subtle-soft: rgba(73, 45, 23, 0.6);
         --condensed:
           "Futura-CondensedExtraBold", "Futura Condensed", "Avenir Next Condensed",
           "Arial Narrow", "Roboto Condensed", "Impact", sans-serif;
@@ -53,18 +53,19 @@
         font-size: clamp(13px, 1.33vw, 14px);
         line-height: 1.3;
         letter-spacing: 0.01em;
-        color: rgba(73, 45, 23, 0.51);
+        color: rgba(73, 45, 23, 0.56);
       }
 
       .symbol-stage {
-        width: min(88vw, 74svh, 760px);
+        width: min(88vw, 74vh, 760px);
+        height: min(88vw, 74vh, 760px);
         position: relative;
         margin-top: auto;
       }
 
       .wrap {
         width: 100%;
-        aspect-ratio: 1;
+        height: 100%;
         display: grid;
         place-items: center;
       }
@@ -80,12 +81,13 @@
         text-transform: uppercase;
         user-select: none;
         pointer-events: none;
+        display: none;
       }
 
       .date-top {
         top: -3.6%;
         right: -2.8%;
-        color: rgba(246, 241, 230, 0.96);
+        color: var(--white);
       }
 
       .date-bottom {
@@ -93,7 +95,7 @@
         left: -2.8%;
         transform: rotate(180deg);
         transform-origin: center;
-        color: rgba(17, 17, 17, 0.94);
+        color: var(--black);
       }
 
       .meta {
@@ -101,8 +103,73 @@
         display: grid;
         justify-items: center;
         gap: 5px;
-        margin-top: auto;
+        margin-top: 0;
         margin-bottom: 2px;
+      }
+
+      .balance-meter {
+        width: min(26vw, 210px);
+        display: grid;
+        justify-items: center;
+        gap: 4px;
+        margin-top: 0;
+      }
+
+      .balance-track {
+        width: 100%;
+        height: clamp(8px, 1.05vmin, 11px);
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.92);
+        overflow: hidden;
+        display: flex;
+        background: rgba(0, 0, 0, 0.12);
+        position: relative;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset;
+        touch-action: none;
+        user-select: none;
+        cursor: ew-resize;
+      }
+
+      .balance-fill {
+        height: 100%;
+        flex: 0 0 auto;
+        transition: width 90ms linear;
+      }
+
+      .balance-fill-negative {
+        background: #000;
+      }
+
+      .balance-fill-positive {
+        background: #fff;
+      }
+
+      .balance-handle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 0;
+        border-left: 1px solid rgba(0, 0, 0, 0.86);
+        pointer-events: none;
+      }
+
+      .balance-label-row {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-family: "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+        font-weight: 700;
+        font-size: clamp(11px, 1.2vmin, 18px);
+        line-height: 1;
+      }
+
+      .balance-label-negative {
+        color: rgba(0, 0, 0, 0.96);
+      }
+
+      .balance-label-positive {
+        color: rgba(0, 0, 0, 0.96);
       }
 
       .instruction-row {
@@ -184,22 +251,9 @@
         }
 
         .symbol-stage {
-          width: min(94vw, 70svh, 620px);
+          width: min(94vw, 70vh, 620px);
+          height: min(94vw, 70vh, 620px);
           margin-top: 0;
-        }
-
-        .date-stamp {
-          font-size: clamp(18px, 4.1vmin, 28px);
-        }
-
-        .date-top {
-          top: -5.4%;
-          right: -2.4%;
-        }
-
-        .date-bottom {
-          bottom: -5.4%;
-          left: -2.4%;
         }
 
         .meta {
@@ -210,6 +264,20 @@
           width: min(98vw, 680px);
           gap: 4px;
           margin: 0;
+        }
+
+        .balance-meter {
+          width: min(36vw, 180px);
+          gap: 4px;
+          margin-top: 0;
+        }
+
+        .balance-track {
+          height: clamp(7px, 2.1vmin, 10px);
+        }
+
+        .balance-label-row {
+          font-size: clamp(9px, 2.6vmin, 13px);
         }
 
         .instruction {
@@ -236,17 +304,37 @@
       <section class="symbol-stage" aria-label="Duality symbol with date">
         <div class="date-stamp date-top" id="dateTop"></div>
         <section class="wrap">
-          <canvas id="yy" aria-label="Interactive yin yang mood tracker"></canvas>
+          <canvas id="yy" aria-label="Interactive dual-face mood tracker"></canvas>
         </section>
         <div class="date-stamp date-bottom" id="dateBottom"></div>
       </section>
+
+      <section class="balance-meter" aria-label="Positivity and negativity balance">
+        <div
+          class="balance-track"
+          id="balanceTrack"
+          role="slider"
+          aria-label="Positivity ratio"
+          aria-valuemin="2"
+          aria-valuemax="98"
+          aria-valuenow="50"
+          tabindex="0"
+        >
+          <div class="balance-fill balance-fill-negative" id="balanceNegativeFill"></div>
+          <div class="balance-fill balance-fill-positive" id="balancePositiveFill"></div>
+          <div class="balance-handle" id="balanceHandle"></div>
+        </div>
+        <div class="balance-label-row">
+          <span class="balance-label-negative" id="balanceNegativeLabel">negativity 50%</span>
+          <span class="balance-label-positive" id="balancePositiveLabel">positivity 50%</span>
+        </div>
+      </section>
+
       <section class="meta">
-        <p class="instruction">
-          Click and drag on each unique element of the symbol
-        </p>
-        <p class="instruction">make it reflect the balance of light and dark within you today</p>
+        <p class="instruction">drag and manipulate the faces to express your current mood</p>
+        <p class="instruction">notice the balance of light and dark within you today</p>
         <div class="instruction-row">
-          <p class="instruction">take a screenshot to track your daily moods and perceptions of self</p>
+          <p class="instruction">take a screenshot to capture this timestamped self portrait</p>
         </div>
         <div class="button-row">
           <button class="shot-btn" id="saveShot" type="button">screenshot</button>
@@ -263,17 +351,403 @@
         const dateBottom = document.getElementById("dateBottom");
         const saveShotButton = document.getElementById("saveShot");
         const saveStatus = document.getElementById("saveStatus");
+        const balanceTrack = document.getElementById("balanceTrack");
+        const balanceNegativeFill = document.getElementById("balanceNegativeFill");
+        const balancePositiveFill = document.getElementById("balancePositiveFill");
+        const balanceHandle = document.getElementById("balanceHandle");
+        const balanceNegativeLabel = document.getElementById("balanceNegativeLabel");
+        const balancePositiveLabel = document.getElementById("balancePositiveLabel");
         const ctx = canvas.getContext("2d", { alpha: true });
         const rootStyles = getComputedStyle(document.documentElement);
+
+        const COLORS = {
+          bg: rootStyles.getPropertyValue("--bg").trim() || "#a87444",
+          black: rootStyles.getPropertyValue("--black").trim() || "#8f61a8",
+          white: rootStyles.getPropertyValue("--white").trim() || "#e01b8e",
+          line: rootStyles.getPropertyValue("--face-line").trim() || "#231f20",
+        };
+        const LOOK_TEST = Object.freeze({
+          // Quick revert: set enabled to false.
+          enabled: true,
+          // Temporary look test palette and stroke visibility.
+          colors: {
+            black: "#64418e",
+            white: "#ff6699",
+          },
+          drawDividerStroke: true,
+          drawOuterStroke: true,
+          drawEyeStroke: true,
+        });
+        if (LOOK_TEST.enabled) {
+          COLORS.black = LOOK_TEST.colors.black;
+          COLORS.white = LOOK_TEST.colors.white;
+        }
+
         const CONDENSED_FONT_STACK =
           '"Futura-CondensedExtraBold","Futura Condensed","Avenir Next Condensed","Arial Narrow","Roboto Condensed","Impact",sans-serif';
+
         const isIOSLike =
           /iPad|iPhone|iPod/.test(navigator.userAgent) ||
           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+        // Same core interaction fields as the yin-yang version.
+        const PUSH_MIN = 0.02;
+        const PUSH_MAX = 0.98;
+        const EYE_HIDE_AREA_THRESHOLD = 0.1;
+        const FACE_EDGE_PADDING_CSS = 20;
+        const FEATURE_PADDING_CSS = 8;
+        const EYE_DRAG_HIT_PAD_CSS = 8;
+        const OUTLINE_WIDTH_CSS = 2.2;
+        const OUTER_RING_WEIGHT = 1.2;
+
+        // Fallback divider profile (rest pose). Primary source is face_ref.svg.
+        const BASE_PROFILE = Object.freeze([
+          [-0.94, 0.0],
+          [-0.8617, 0.0],
+          [-0.7833, 0.0],
+          [-0.705, 0.0],
+          [-0.6267, 0.0],
+          [-0.5483, 0.006],
+          [-0.47, 0.1609],
+          [-0.3917, 0.3502],
+          [-0.3133, 0.3728],
+          [-0.235, 0.3534],
+          [-0.1567, 0.3094],
+          [-0.0783, 0.1928],
+          [0.0, 0.0179],
+          [0.0783, -0.148],
+          [0.1567, -0.3143],
+          [0.235, -0.3485],
+          [0.3133, -0.3079],
+          [0.3917, -0.2029],
+          [0.47, -0.0526],
+          [0.5483, -0.0047],
+          [0.6267, 0.0],
+          [0.705, 0.0],
+          [0.7833, 0.0],
+          [0.8617, 0.0],
+          [0.94, 0.0],
+        ]);
+
+        const FACE_SVG_VIEWBOX = 540.72;
+        const FACE_BASE_LEFT_PATH_D =
+          "M266.76,0l-.5,92.1-.15,59.13c26.68-9.61,52.18-17.95,80.25-19.3,9.8-.21,18.98,1.04,27.85,4.71,11.83,4.89,19.52,15.53,20.13,28.41,1.3,27.38-12.11,50.61-33.57,66.62-26.2,17.84-62.76,24.9-94.2,19.39l-.64,40.14-.25,24.05c-36.84,1.7-68.67-2.98-101.56-19.76-6.62-3.38-12.68-6.92-19.03-10.72-2.2-1.32-3.81-3.11-6.51-4.24,4.46,18.29,10.46,35.37,17.92,52.35,5.06,11.51,10.86,22.14,17.69,32.57,4.04,6.16,9.17,10.83,15.63,14.29,20.47,10.97,52.78,19.47,76.06,25.29.59,11.05.25,21.73.31,32.89l.58,102.77h-10.07c.04-.41-.46-.4-.91-.55C119.51,532.87,8.69,424,.91,286.17c.02.3.11-9.28-.91-9.81v-12.95c.5-3.36.75-6.18.9-8.82C8.61,118.15,117.55,9.11,253.7.65c3.33-.21,7.36.22,11.14-.65h1.92Z";
+        const FACE_SVG_PATH_D = Object.freeze({
+          eyeLeft:
+            "M216.67,106.73c-.49-5.25-2.61-9.8-6.15-13.55-4.16-4.39-10.74-4.29-14.78.46-7.86,9.24-7.58,22.99.3,32.23,2.06,2.42,4.64,3.74,7.62,3.69,9.61-.16,13.82-14.1,13.01-22.83Z",
+          shared:
+            "M322.17,468.78c4.13,3.8,10.22,3.38,13.97-.82,8.55-9.58,8.06-24.72-1.1-33.88-4.28-4.28-11.1-3.18-14.64,1.52-7.08,9.4-7.65,24.52,1.77,33.17Z",
+        });
+
         const saveState = {
           isSaving: false,
           statusTimeout: 0,
         };
+        const ORIENTATION_ANGLE = Object.freeze({
+          white: 0,
+          black: Math.PI,
+        });
+        const viewRotation = {
+          current: 0,
+          target: 0,
+        };
+
+        const state = {
+          whitePush: 0.5,
+          blackPush: 0.5,
+          whiteLift: 0,
+          blackLift: 0,
+          whiteLocalShiftX: 0,
+          blackLocalShiftX: 0,
+          whiteLocalShiftY: 0,
+          blackLocalShiftY: 0,
+          whiteMouthWidth: 0,
+          blackMouthWidth: 0,
+          whiteMouthHeight: 0,
+          blackMouthHeight: 0,
+          whiteFocusY: -0.5,
+          blackFocusY: 0.5,
+        };
+
+        const stateTarget = { ...state };
+        const STATE_KEYS = Object.keys(state);
+
+        const drag = {
+          active: false,
+          pointerId: null,
+          mode: null, // "white" | "black"
+          eyeGrab: null, // "top" | "bottom" | null
+          start: { x: 0, y: 0 },
+          last: { x: 0, y: 0 },
+          startWhitePush: 0.5,
+          startBlackPush: 0.5,
+          startWhiteLift: 0,
+          startBlackLift: 0,
+          startWhiteLocalShiftX: 0,
+          startBlackLocalShiftX: 0,
+          startWhiteLocalShiftY: 0,
+          startBlackLocalShiftY: 0,
+          startWhiteMouthWidth: 0,
+          startBlackMouthWidth: 0,
+          startWhiteMouthHeight: 0,
+          startBlackMouthHeight: 0,
+          startWhiteFocusY: -0.5,
+          startBlackFocusY: 0.5,
+          grabYNorm: 0,
+          noseGrab: 0,
+          mouthGrab: 0,
+          topInfluence: 0.5,
+          bottomInfluence: 0.5,
+        };
+        const balanceDrag = {
+          active: false,
+          pointerId: null,
+          side: "white",
+        };
+        let balancePositiveRatio = 0.5;
+
+        const EYE_ANCHORS = Object.freeze({
+          top: { xNorm: -0.238, yNorm: -0.595, radiusScale: 0.11 },
+          bottom: { xNorm: 0.217, yNorm: 0.668, radiusScale: 0.11 },
+        });
+
+        const EYE_LOAD_TARGETS = Object.freeze({
+          top: { xNorm: -0.238, yNorm: -0.595 },
+          bottom: { xNorm: 0.217, yNorm: 0.668 },
+        });
+        const EYE_LOAD_BLEND_DEFORM = 0.18;
+        const FACE_LANDMARKS = Object.freeze({
+          upper: {
+            tipY: -0.02,
+            tipSigma: 0.11,
+            baseY: 0.13,
+            baseSigma: 0.13,
+            baseWeight: 0.8,
+          },
+          lower: {
+            tipY: 0.27,
+            tipSigma: 0.11,
+            baseY: 0.43,
+            baseSigma: 0.14,
+            baseWeight: 0.78,
+          },
+        });
+        const FEATURE_ORDER = Object.freeze({
+          topEyeMaxNorm: -0.26,
+          bottomEyeMinNorm: 0.26,
+          noseUpperNorm: -0.08,
+          noseLowerNorm: 0.14,
+          mouthUpperNorm: 0.16,
+          mouthLowerNorm: 0.40,
+          minEyeToNoseGapNorm: 0.12,
+          minNoseToMouthGapNorm: 0.08,
+        });
+
+        const eyeMemory = {
+          top: null,
+          bottom: null,
+        };
+
+        function clamp(n, min, max) {
+          return Math.min(max, Math.max(min, n));
+        }
+
+        function lerp(a, b, t) {
+          return a + (b - a) * t;
+        }
+
+        function smoothstep(edge0, edge1, x) {
+          if (edge0 === edge1) return x < edge0 ? 0 : 1;
+          const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+          return t * t * (3 - 2 * t);
+        }
+
+        function gaussian(v, center, sigma) {
+          return Math.exp(-Math.pow((v - center) / Math.max(1e-6, sigma), 2));
+        }
+
+        function clampPush(v) {
+          return clamp(v, PUSH_MIN, PUSH_MAX);
+        }
+
+        function setViewRotationForSide(side) {
+          const next = ORIENTATION_ANGLE[side] ?? 0;
+          viewRotation.target = next;
+          viewRotation.current = next;
+        }
+
+        function setBalanceFromPositiveRatio(positiveRatio, sideHint) {
+          const positive = clampPush(positiveRatio);
+          const negative = clampPush(1 - positive);
+          stateTarget.whitePush = positive;
+          stateTarget.blackPush = negative;
+          // Slider should feel direct and deterministic.
+          state.whitePush = positive;
+          state.blackPush = negative;
+          if (sideHint) {
+            setViewRotationForSide(sideHint);
+          }
+        }
+
+        function getPositiveRatioFromGeometry(geometryState) {
+          const points = geometryState?.dividerPoints;
+          const R = geometryState?.R;
+          if (!points || points.length < 2 || !(R > 0)) {
+            return clampPush(state.whitePush);
+          }
+
+          let whiteAccum = 0;
+          let totalAccum = 0;
+          for (let i = 0; i < points.length; i += 1) {
+            const p = points[i];
+            const outerX = Math.sqrt(Math.max(0, R * R - p.y * p.y));
+            const dividerX = clamp(p.x, -outerX, outerX);
+            const whiteWidth = outerX + dividerX;
+            const totalWidth = outerX * 2;
+            whiteAccum += whiteWidth;
+            totalAccum += totalWidth;
+          }
+
+          if (totalAccum <= 1e-6) {
+            return clampPush(state.whitePush);
+          }
+          return clamp(whiteAccum / totalAccum, PUSH_MIN, PUSH_MAX);
+        }
+
+        function updateBalanceMeter(geometryState) {
+          if (
+            !balanceTrack ||
+            !balanceNegativeFill ||
+            !balancePositiveFill ||
+            !balanceHandle ||
+            !balanceNegativeLabel ||
+            !balancePositiveLabel
+          ) {
+            return;
+          }
+
+          const positive = getPositiveRatioFromGeometry(geometryState);
+          const negative = 1 - positive;
+          balancePositiveRatio = positive;
+
+          const negPct = Math.round(negative * 100);
+          const posPct = Math.round(positive * 100);
+          const splitPct = negative * 100;
+
+          balanceNegativeFill.style.width = `${splitPct}%`;
+          balancePositiveFill.style.width = `${100 - splitPct}%`;
+          balanceHandle.style.left = `${splitPct}%`;
+          balanceNegativeLabel.textContent = `negativity ${negPct}%`;
+          balancePositiveLabel.textContent = `positivity ${posPct}%`;
+          balanceTrack.setAttribute("aria-valuenow", String(posPct));
+          balanceTrack.setAttribute(
+            "aria-valuetext",
+            `${negPct}% negativity, ${posPct}% positivity`
+          );
+        }
+
+        function getBalanceTrackXNorm(e) {
+          const rect = balanceTrack.getBoundingClientRect();
+          const width = Math.max(1, rect.width);
+          const x = clamp(e.clientX - rect.left, 0, width);
+          return x / width;
+        }
+
+        function createPath2DSafely(pathData) {
+          if (typeof Path2D !== "function" || !pathData) return null;
+          try {
+            return new Path2D(pathData);
+          } catch (_) {
+            return null;
+          }
+        }
+
+        let dividerProfile = BASE_PROFILE;
+        const FACE_DIVIDER_PATH = createPath2DSafely(FACE_BASE_LEFT_PATH_D);
+        const dividerProbeCanvas = document.createElement("canvas");
+        const dividerProbeCtx = dividerProbeCanvas.getContext("2d");
+
+        function smoothProfileSamples(profile, passes = 1, maxStep = 0.09) {
+          if (!profile || profile.length < 5) return profile;
+          let xs = profile.map((point) => point[1]);
+          const n = xs.length;
+          for (let pass = 0; pass < passes; pass += 1) {
+            const next = xs.slice();
+            for (let i = 1; i < n - 1; i += 1) {
+              next[i] = (xs[i - 1] + 2 * xs[i] + xs[i + 1]) * 0.25;
+            }
+            xs = next;
+          }
+          for (let i = 1; i < n; i += 1) {
+            const delta = xs[i] - xs[i - 1];
+            if (Math.abs(delta) > maxStep) {
+              xs[i] = xs[i - 1] + Math.sign(delta) * maxStep;
+            }
+          }
+          return profile.map((point, index) => [point[0], clamp(xs[index], -1, 1)]);
+        }
+
+        function initializeDividerProfileFromSvgPath() {
+          if (!dividerProbeCtx || !FACE_DIVIDER_PATH) return;
+          const view = FACE_SVG_VIEWBOX;
+          const probeSize = Math.max(2, Math.ceil(view));
+          dividerProbeCanvas.width = probeSize;
+          dividerProbeCanvas.height = probeSize;
+          dividerProbeCtx.setTransform(1, 0, 0, 1, 0, 0);
+          dividerProbeCtx.clearRect(0, 0, probeSize, probeSize);
+
+          const sampleCount = 321;
+          const scanStep = 0.4;
+          const sampled = [];
+          for (let i = 0; i < sampleCount; i += 1) {
+            const yNorm = -1 + (2 * i) / (sampleCount - 1);
+            const y = ((yNorm + 1) * 0.5) * view;
+            let rightmostInside = null;
+
+            for (let x = 0; x <= view; x += scanStep) {
+              if (dividerProbeCtx.isPointInPath(FACE_DIVIDER_PATH, x, y)) {
+                rightmostInside = x;
+              }
+            }
+
+            if (rightmostInside == null) {
+              sampled.push([yNorm, 0]);
+              continue;
+            }
+
+            let lo = rightmostInside;
+            let hi = Math.min(view, rightmostInside + scanStep);
+            for (let j = 0; j < 14; j += 1) {
+              const mid = (lo + hi) * 0.5;
+              if (dividerProbeCtx.isPointInPath(FACE_DIVIDER_PATH, mid, y)) {
+                lo = mid;
+              } else {
+                hi = mid;
+              }
+            }
+            const xNorm = (lo / view) * 2 - 1;
+            sampled.push([yNorm, xNorm]);
+          }
+
+          if (sampled.length >= 16) {
+            // For load fidelity, preserve the raw sampled reference seam.
+            dividerProfile = Object.freeze(
+              sampled.map((point) => [point[0], clamp(point[1], -1, 1)])
+            );
+          }
+        }
+        initializeDividerProfileFromSvgPath();
+
+        const FACE_SOURCE_PATHS = (() => {
+          const eyeLeft = createPath2DSafely(FACE_SVG_PATH_D.eyeLeft);
+          const shared = createPath2DSafely(FACE_SVG_PATH_D.shared);
+          if (!eyeLeft || !shared) return null;
+          return { eyeLeft, shared };
+        })();
+
+        function getCanvasScale() {
+          return canvas.width / Math.max(1, canvas.clientWidth || 1);
+        }
 
         function formatDisplayDate(date = new Date()) {
           const parts = new Intl.DateTimeFormat("en-US", {
@@ -292,6 +766,7 @@
           dateTop.textContent = stamp;
           dateBottom.textContent = stamp;
         }
+
         renderDateStamps();
         window.setInterval(renderDateStamps, 60_000);
 
@@ -321,93 +796,726 @@
           }, 2600);
         }
 
-        const COLORS = {
-          black: getComputedStyle(document.documentElement).getPropertyValue("--black").trim(),
-          white: getComputedStyle(document.documentElement).getPropertyValue("--white").trim(),
-        };
-        const DOT_PADDING_CSS = 5;
-        const DOT_DRAG_HIT_PAD_CSS = 6;
-        const PUSH_MIN = 0.005;
-        const PUSH_MAX = 0.995;
-
-        const state = {
-          whitePush: 0.5,
-          blackPush: 0.5,
-          whiteLift: 0,
-          blackLift: 0,
-          whiteLocalShiftX: 0,
-          blackLocalShiftX: 0,
-          whiteFocusY: -0.5,
-          blackFocusY: 0.5,
-        };
-        const stateTarget = { ...state };
-        const STATE_KEYS = Object.keys(state);
-
-        const SELECTION_RING_WIDTH_CSS = 6;
-
-        const drag = {
-          active: false,
-          pointerId: null,
-          mode: null, // "white" | "black" | "topDotMove" | "bottomDotMove"
-          start: { x: 0, y: 0 },
-          last: { x: 0, y: 0 },
-          startWhitePush: 0.5,
-          startBlackPush: 0.5,
-          startWhiteLift: 0,
-          startBlackLift: 0,
-          startWhiteLocalShiftX: 0,
-          startBlackLocalShiftX: 0,
-          startWhiteFocusY: -0.5,
-          startBlackFocusY: 0.5,
-          grabYNorm: 0,
-          topInfluence: 0.5,
-          bottomInfluence: 0.5,
-          activeDotCenter: { x: 0, y: 0 },
-          activeDotOffset: { x: 0, y: 0 },
-        };
-
-        const dotMemory = {
-          top: null,
-          bottom: null,
-        };
-
-        const dotUser = {
-          top: { active: false, x: 0, y: -0.5 },
-          bottom: { active: false, x: 0, y: 0.5 },
-        };
-
-        function clamp(n, min, max) {
-          return Math.min(max, Math.max(min, n));
+        function resizeCanvasToDisplaySize() {
+          const rect = canvas.getBoundingClientRect();
+          const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+          const w = Math.max(2, Math.round(rect.width * dpr));
+          const h = Math.max(2, Math.round(rect.height * dpr));
+          if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w;
+            canvas.height = h;
+          }
         }
 
-        function clampPush(value) {
-          return clamp(value, PUSH_MIN, PUSH_MAX);
+        function rotatePoint(x, y, angle) {
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          return {
+            x: x * cos - y * sin,
+            y: x * sin + y * cos,
+          };
         }
 
-        function setDotUserPosition(key, x, y, R) {
-          const safeR = Math.max(1e-6, R);
-          dotUser[key].active = true;
-          dotUser[key].x = clamp(x / safeR, -1.2, 1.2);
-          dotUser[key].y = clamp(y / safeR, -1.2, 1.2);
+        function getLocalPoint(e) {
+          const rect = canvas.getBoundingClientRect();
+          const sx = canvas.width / Math.max(1, rect.width);
+          const sy = canvas.height / Math.max(1, rect.height);
+          const x = (e.clientX - rect.left) * sx;
+          const y = (e.clientY - rect.top) * sy;
+          const centered = { x: x - canvas.width * 0.5, y: y - canvas.height * 0.5 };
+          return rotatePoint(centered.x, centered.y, -viewRotation.current);
         }
 
-        function getDotUserPosition(key, R) {
-          const safeR = Math.max(1e-6, R);
-          return { x: dotUser[key].x * safeR, y: dotUser[key].y * safeR };
+        function getRadius() {
+          return Math.min(canvas.width, canvas.height) * 0.44;
         }
 
-        function dividerSlopeAtY(y, R) {
-          const h = Math.max(1, R * 0.006);
-          const y0 = clamp(y - h, -R, R);
-          const y1 = clamp(y + h, -R, R);
-          const dy = Math.max(1e-6, y1 - y0);
-          return (dividerXAtY(y1, R) - dividerXAtY(y0, R)) / dy;
+        function isInsideCircle(x, y, R) {
+          return x * x + y * y <= R * R;
         }
 
-        function dividerNormalDistance(x, y, R) {
-          const dx = x - dividerXAtY(y, R);
-          const slope = dividerSlopeAtY(y, R);
+        function sampleProfile(points, yNorm) {
+          const yn = clamp(yNorm, -1, 1);
+          const topY = points[0][0];
+          const bottomY = points[points.length - 1][0];
+          if (yn <= topY) return points[0][1] * smoothstep(-1, topY, yn);
+          if (yn >= bottomY) return points[points.length - 1][1] * (1 - smoothstep(bottomY, 1, yn));
+
+          for (let i = 0; i < points.length - 1; i += 1) {
+            const a = points[i];
+            const b = points[i + 1];
+            if (yn < a[0] || yn > b[0]) continue;
+            const t = (yn - a[0]) / Math.max(1e-9, b[0] - a[0]);
+            return a[1] + (b[1] - a[1]) * t;
+          }
+          return 0;
+        }
+
+        function sampleProfileSlope(points, yNorm) {
+          const h = 0.008;
+          const y0 = clamp(yNorm - h, -1, 1);
+          const y1 = clamp(yNorm + h, -1, 1);
+          const x0 = sampleProfile(points, y0);
+          const x1 = sampleProfile(points, y1);
+          return (x1 - x0) / Math.max(1e-6, y1 - y0);
+        }
+
+        function landmarkPivotWeight(yNorm, landmark) {
+          const tip = gaussian(yNorm, landmark.tipY, landmark.tipSigma);
+          const base = gaussian(yNorm, landmark.baseY, landmark.baseSigma) * landmark.baseWeight;
+          return clamp(tip - base, -1, 1);
+        }
+
+        function softClampUpper(value, maxValue, softness) {
+          const s = Math.max(1e-6, softness);
+          const over = value - maxValue;
+          return maxValue + over / (1 + Math.exp(over / s));
+        }
+
+        function softClampLower(value, minValue, softness) {
+          const s = Math.max(1e-6, softness);
+          const under = minValue - value;
+          return minValue - under / (1 + Math.exp(under / s));
+        }
+
+        function getGrabInfluence(yNorm) {
+          const yn = clamp(yNorm, -1, 1);
+          const sigma = 0.46;
+          const topRaw = Math.exp(-Math.pow((yn + 0.52) / sigma, 2));
+          const bottomRaw = Math.exp(-Math.pow((yn - 0.52) / sigma, 2));
+          const sum = topRaw + bottomRaw + 1e-9;
+          return { top: topRaw / sum, bottom: bottomRaw / sum };
+        }
+
+        function getNoseZoneAffinity(yNorm) {
+          const yn = clamp(yNorm, -1, 1);
+          const upperNose = gaussian(yn, -0.02, 0.2);
+          const lowerNose = gaussian(yn, 0.24, 0.22);
+          return clamp(Math.max(upperNose, lowerNose), 0, 1);
+        }
+
+        function getMouthZoneAffinity(yNorm) {
+          const yn = clamp(yNorm, -1, 1);
+          const core = gaussian(yn, 0.24, 0.2);
+          const lower = gaussian(yn, 0.38, 0.24);
+          return clamp(core * 0.94 + lower * 0.62, 0, 1);
+        }
+
+        function getGlobalDeformAmount() {
+          const pushDelta =
+            Math.max(Math.abs(state.whitePush - 0.5), Math.abs(state.blackPush - 0.5)) * 2;
+          const liftDelta = Math.max(Math.abs(state.whiteLift), Math.abs(state.blackLift));
+          const localXDelta = Math.max(
+            Math.abs(state.whiteLocalShiftX),
+            Math.abs(state.blackLocalShiftX)
+          );
+          const localYDelta = Math.max(
+            Math.abs(state.whiteLocalShiftY),
+            Math.abs(state.blackLocalShiftY)
+          );
+          const mouthWidthDelta = Math.max(
+            Math.abs(state.whiteMouthWidth),
+            Math.abs(state.blackMouthWidth)
+          );
+          const mouthHeightDelta = Math.max(
+            Math.abs(state.whiteMouthHeight),
+            Math.abs(state.blackMouthHeight)
+          );
+          return clamp(
+            Math.max(pushDelta, liftDelta, localXDelta, localYDelta, mouthWidthDelta, mouthHeightDelta),
+            0,
+            1
+          );
+        }
+
+        function dividerXAtY(y, R) {
+          const yNorm = clamp(y / R, -1, 1);
+          const outerX = Math.sqrt(Math.max(0, R * R - y * y));
+          const dominance = clamp(state.whitePush - state.blackPush, -0.95, 0.95);
+          const whiteDelta = (state.whitePush - 0.5) * 2;
+          const blackDelta = (state.blackPush - 0.5) * 2;
+          const computeRawX = (yn) => {
+            const envelope = Math.pow(Math.max(0, 1 - yn * yn), 0.9);
+            const focusWhite = gaussian(yn, clamp(state.whiteFocusY, -1, 1), 0.36);
+            const focusBlack = gaussian(yn, clamp(state.blackFocusY, -1, 1), 0.36);
+            const mouthWidthDriveRaw = clamp(
+              state.whiteMouthWidth * focusWhite - state.blackMouthWidth * focusBlack,
+              -6,
+              6
+            );
+            const mouthHeightDriveRaw = clamp(
+              state.whiteMouthHeight * focusWhite - state.blackMouthHeight * focusBlack,
+              -6,
+              6
+            );
+            const mouthWidthDrive = Math.tanh(mouthWidthDriveRaw * 0.34) * 1.45;
+            const mouthHeightDrive = Math.tanh(mouthHeightDriveRaw * 0.34) * 1.35;
+            const mouthCore = gaussian(yn, 0.24, 0.12);
+            const mouthWide = gaussian(yn, 0.24, 0.28);
+            const mouthUpper = gaussian(yn, 0.14, 0.14);
+            const mouthLower = gaussian(yn, 0.37, 0.14);
+            const noseBand = clamp(
+              gaussian(yn, -0.02, 0.18) + gaussian(yn, 0.24, 0.2) * 0.82,
+              0,
+              1.5
+            );
+            const poleFade = 1 - smoothstep(0.74, 0.985, Math.abs(yn));
+            const localYShiftRaw =
+              (state.whiteLocalShiftY * focusWhite - state.blackLocalShiftY * focusBlack) *
+              envelope *
+              (0.24 + 0.52 * noseBand) *
+              poleFade;
+            const localYShiftNorm = 0.24 * Math.tanh(localYShiftRaw / 0.24);
+            const mouthVerticalShiftRaw =
+              mouthHeightDrive * (mouthWide * 0.11 + (mouthUpper - mouthLower) * 0.08);
+            const mouthVerticalShiftNorm = 0.16 * Math.tanh(mouthVerticalShiftRaw / 0.16);
+            const ySampleRaw = yn - localYShiftNorm - mouthVerticalShiftNorm;
+            const ySampleLinear = clamp(ySampleRaw, -1, 1);
+            const ySampleCurved = clamp(
+              Math.tanh(ySampleRaw * 1.12) / Math.max(1e-6, Math.tanh(1.12)),
+              -1,
+              1
+            );
+            const verticalWarpMag = Math.abs(localYShiftNorm) + Math.abs(mouthVerticalShiftNorm);
+            const verticalWarpT = smoothstep(0.018, 0.2, verticalWarpMag);
+            const ySample = ySampleLinear * (1 - verticalWarpT) + ySampleCurved * verticalWarpT;
+            const base = sampleProfile(dividerProfile, ySample) * R;
+            const eyeZone = gaussian(ySample, -0.33, 0.22);
+            const mouthZone = gaussian(ySample, 0.25, 0.24);
+            const mouthCoreS = gaussian(ySample, 0.24, 0.12);
+            const mouthWideS = gaussian(ySample, 0.24, 0.3);
+
+            const sideDir = Math.tanh(dominance * 3.6);
+            const sideSign = sideDir >= 0 ? 1 : -1;
+            const sideBlend = 0.5 + 0.5 * sideDir;
+            const dominanceAbs = Math.abs(dominance);
+            const dominanceGate = smoothstep(0.14, 0.96, dominanceAbs);
+
+            const dominanceShift =
+              dominance * outerX * (0.58 + 0.09 * gaussian(ySample, 0, 0.5));
+            const liftShift = (state.whiteLift - state.blackLift) * ySample * envelope * 0.26 * R;
+            const localShift =
+              (state.whiteLocalShiftX * focusWhite - state.blackLocalShiftX * focusBlack) *
+              envelope *
+              0.22 *
+              R;
+            const expressionShift =
+              ((whiteDelta - blackDelta) * eyeZone * 0.1 -
+                (whiteDelta - blackDelta) * mouthZone * 0.08) *
+              R;
+            const mouthHorizontalShiftRaw =
+              (mouthWidthDrive * (0.14 * mouthWideS + 0.13 * mouthCoreS) +
+                mouthHeightDrive * 0.03 * mouthWideS) *
+              R;
+            const mouthShiftCap = outerX * (0.09 + 0.08 * mouthWideS);
+            const mouthHorizontalShift = clamp(
+              mouthHorizontalShiftRaw,
+              -mouthShiftCap,
+              mouthShiftCap
+            );
+            const preFeatureX = base + dominanceShift + liftShift + localShift + expressionShift;
+            const edgeDistanceN =
+              outerX > 1e-6 ? clamp((outerX - Math.abs(preFeatureX)) / outerX, 0, 1) : 0;
+            const featureEdgeGuard = 0.08 + 0.92 * Math.pow(edgeDistanceN, 0.72);
+            const positiveNoseShape =
+              (gaussian(ySample, -0.11, 0.15) * 0.2 +
+                gaussian(ySample, 0.02, 0.14) * 0.36 +
+                gaussian(ySample, 0.14, 0.12) * 0.12 -
+                gaussian(ySample, 0.3, 0.14) * 0.08) *
+              R;
+            const negativeNoseShape =
+              (-gaussian(ySample, -0.12, 0.16) * 0.14 +
+                gaussian(ySample, 0.06, 0.12) * 0.08 +
+                gaussian(ySample, 0.2, 0.13) * 0.38 +
+                gaussian(ySample, 0.32, 0.13) * 0.12) *
+              R;
+            const whiteFeatureEnergy = clamp(
+              Math.abs(state.whiteLift) * 0.32 +
+                Math.abs(state.whiteLocalShiftY) * 0.38 +
+                Math.abs(state.whiteLocalShiftX) * 0.2 +
+                Math.abs(state.whiteMouthHeight) * 0.22,
+              0,
+              1.6
+            );
+            const blackFeatureEnergy = clamp(
+              Math.abs(state.blackLift) * 0.32 +
+                Math.abs(state.blackLocalShiftY) * 0.38 +
+                Math.abs(state.blackLocalShiftX) * 0.2 +
+                Math.abs(state.blackMouthHeight) * 0.22,
+              0,
+              1.6
+            );
+            // Identity lock: positive side keeps a rounded nose, negative keeps pointed.
+            const roundNoseHold = 0.07 + 0.12 * smoothstep(0.02, 1, whiteFeatureEnergy);
+            const sharpNoseHold = 0.07 + 0.12 * smoothstep(0.02, 1, blackFeatureEnergy);
+            const sideNoseShift =
+              (positiveNoseShape * roundNoseHold - negativeNoseShape * sharpNoseHold) *
+              featureEdgeGuard;
+            // Landmark pivot field: moves tip/corner while keeping nearby base anchored.
+            const activeLocalY =
+              state.whiteLocalShiftY * sideBlend + state.blackLocalShiftY * (1 - sideBlend);
+            const activeMouthH =
+              state.whiteMouthHeight * sideBlend + state.blackMouthHeight * (1 - sideBlend);
+            const activeLift = state.whiteLift * sideBlend + state.blackLift * (1 - sideBlend);
+            const pivotDriveRaw =
+              sideDir * (activeLocalY * 0.42 + activeMouthH * 0.34 + activeLift * 0.28);
+            const pivotDrive = Math.tanh(pivotDriveRaw * 0.42);
+            const pivotShiftNorm = pivotDrive * 0.052 * dominanceGate;
+            const profileSlope = sampleProfileSlope(dividerProfile, ySample);
+            const pivotWeightUpper = landmarkPivotWeight(ySample, FACE_LANDMARKS.upper);
+            const pivotWeightLower = landmarkPivotWeight(ySample, FACE_LANDMARKS.lower);
+            const pivotShiftX =
+              profileSlope *
+              pivotShiftNorm *
+              (pivotWeightUpper + pivotWeightLower) *
+              R *
+              featureEdgeGuard;
+
+            return (
+              preFeatureX +
+              mouthHorizontalShift * featureEdgeGuard +
+              sideNoseShift +
+              pivotShiftX
+            );
+          };
+
+          let x = computeRawX(yNorm);
+
+          const edgePad = FACE_EDGE_PADDING_CSS * getCanvasScale();
+          const padded = Math.max(0, outerX - edgePad);
+          if (padded <= 1e-6) return 0;
+          const sideDir = Math.tanh(dominance * 3.6);
+          const sideSign = sideDir >= 0 ? 1 : -1;
+          const sideBlend = 0.5 + 0.5 * sideDir;
+
+          // Nose wall "mass": when pushed into the rim, shift deformation upward and spread it
+          // instead of creating sharp clipped corners.
+          const wallRatio = Math.abs(x) / Math.max(1e-6, padded);
+          const pressureBase =
+            smoothstep(0.72, 0.995, wallRatio) * smoothstep(0.32, 0.95, Math.abs(dominance));
+          const pressureTowardActiveSide = x * sideSign > 0 ? 1 : 0.35;
+          const noseBand = clamp(
+            gaussian(yNorm, -0.02, 0.2) + gaussian(yNorm, 0.2, 0.22) * 0.7,
+            0,
+            1.35
+          );
+          const massBlend = clamp(pressureBase * pressureTowardActiveSide * noseBand, 0, 0.88);
+          if (massBlend > 1e-4) {
+            const yLiftNorm = 0.14 * massBlend;
+            const yMassNorm = clamp(yNorm - yLiftNorm, -1, 1);
+            const xMass = computeRawX(yMassNorm);
+            x = x * (1 - massBlend * 0.84) + xMass * (massBlend * 0.84);
+            x -= sideSign * massBlend * 0.035 * R;
+          }
+
+          // Keep upper lip expression behind the nose front so it doesn't spike past it.
+          const dominanceGate = smoothstep(0.22, 0.96, Math.abs(dominance));
+          const upperLipBand = clamp(
+            gaussian(yNorm, 0.14, 0.11) * 1.05 + gaussian(yNorm, 0.24, 0.16) * 0.42,
+            0,
+            1
+          );
+          const lipLeash = upperLipBand * dominanceGate;
+          if (lipLeash > 1e-4) {
+            const noseFrontSampleA = computeRawX(clamp(-0.06, -1, 1));
+            const noseFrontSampleB = computeRawX(clamp(0.02, -1, 1));
+            const noseFrontSampleC = computeRawX(clamp(0.1, -1, 1));
+            const noseFrontX =
+              sideSign > 0
+                ? Math.max(noseFrontSampleA, noseFrontSampleB, noseFrontSampleC)
+                : Math.min(noseFrontSampleA, noseFrontSampleB, noseFrontSampleC);
+            const lipAllowance = (0.045 + 0.032 * dominanceGate) * R;
+            const lipCap = noseFrontX + sideSign * lipAllowance;
+            const lipSoftness = Math.max(1.2, R * 0.014);
+            const clampedX =
+              sideSign > 0
+                ? softClampUpper(x, lipCap, lipSoftness)
+                : softClampLower(x, lipCap, lipSoftness);
+            x = x * (1 - lipLeash * 0.95) + clampedX * (lipLeash * 0.95);
+          }
+
+          // Mouth uses three anchors: upper lip, lower lip, and interior apex.
+          // The divider in the mouth band is blended toward that anchor curve and
+          // hard-limited so interior never extends beyond the lip edge.
+          const mouthBandGate =
+            smoothstep(0.07, 0.14, yNorm) * (1 - smoothstep(0.41, 0.5, yNorm));
+          if (mouthBandGate > 1e-4) {
+            const yUpper = lerp(0.14, 0.1, sideBlend);
+            const yLower = lerp(0.39, 0.35, sideBlend);
+            const activeMouthH =
+              state.whiteMouthHeight * sideBlend + state.blackMouthHeight * (1 - sideBlend);
+            const apexBias = Math.tanh(activeMouthH * 0.34);
+            const apexBase = lerp(0.262, 0.214, sideBlend);
+            const yApex = clamp(apexBase - apexBias * 0.085, yUpper + 0.03, yLower - 0.03);
+
+            const xUpper = computeRawX(yUpper);
+            const xLower = computeRawX(yLower);
+            let xApex = computeRawX(yApex);
+
+            const lipEdge = sideSign > 0 ? Math.max(xUpper, xLower) : Math.min(xUpper, xLower);
+            const interiorInset = (0.021 + 0.02 * smoothstep(0.2, 0.95, Math.abs(dominance))) * R;
+            const apexSoftness = Math.max(1, R * 0.012);
+            if (sideSign > 0) {
+              xApex = softClampUpper(xApex, lipEdge - interiorInset, apexSoftness);
+            } else {
+              xApex = softClampLower(xApex, lipEdge + interiorInset, apexSoftness);
+            }
+
+            const s = clamp((yNorm - yUpper) / Math.max(1e-6, yLower - yUpper), 0, 1);
+            const a = clamp((yApex - yUpper) / Math.max(1e-6, yLower - yUpper), 0.06, 0.94);
+            let xAnchorCurve;
+            if (s <= a) {
+              const t = clamp(s / Math.max(1e-6, a), 0, 1);
+              const h = t * t * (3 - 2 * t);
+              xAnchorCurve = xUpper + (xApex - xUpper) * h;
+            } else {
+              const t = clamp((s - a) / Math.max(1e-6, 1 - a), 0, 1);
+              const h = t * t * (3 - 2 * t);
+              xAnchorCurve = xApex + (xLower - xApex) * h;
+            }
+
+            const curveBlend = mouthBandGate * smoothstep(0.08, 0.96, Math.abs(dominance));
+            x = x * (1 - curveBlend) + xAnchorCurve * curveBlend;
+
+            // Lip boundary: no part of mouth band should outrun lip edge.
+            const lipAllowanceTight = 0.004 * R;
+            const lipCapTight = lipEdge + sideSign * lipAllowanceTight;
+            const lipTightSoftness = Math.max(0.8, R * 0.008);
+            if (sideSign > 0) {
+              x = softClampUpper(x, lipCapTight, lipTightSoftness);
+            } else {
+              x = softClampLower(x, lipCapTight, lipTightSoftness);
+            }
+          }
+
+          // Keep mouth wall behind nose tip in expressive drags to prevent spikes.
+          const mouthContainGate =
+            smoothstep(0.09, 0.17, yNorm) *
+            (1 - smoothstep(0.47, 0.57, yNorm)) *
+            smoothstep(0.18, 0.96, Math.abs(dominance));
+          if (mouthContainGate > 1e-4) {
+            const noseSampleA = computeRawX(-0.06);
+            const noseSampleB = computeRawX(0.02);
+            const noseSampleC = computeRawX(0.12);
+            const noseFront =
+              sideSign > 0
+                ? Math.max(noseSampleA, noseSampleB, noseSampleC)
+                : Math.min(noseSampleA, noseSampleB, noseSampleC);
+            const mouthInset = (0.026 + 0.02 * mouthContainGate) * R;
+            const mouthCap = noseFront - sideSign * mouthInset;
+            const mouthSoftness = Math.max(1.2, R * 0.013);
+            const constrainedMouthX =
+              sideSign > 0
+                ? softClampUpper(x, mouthCap, mouthSoftness)
+                : softClampLower(x, mouthCap, mouthSoftness);
+            x = lerp(x, constrainedMouthX, mouthContainGate);
+          }
+
+          const hardLimit = outerX * 0.998;
+          if (hardLimit <= 1e-9) return 0;
+          x = clamp(x, -padded, padded);
+          return clamp(x, -hardLimit, hardLimit);
+        }
+
+        function smoothDividerPoints(points, passes = 3) {
+          if (!points || points.length < 5 || passes <= 0) return points;
+          let xs = points.map((p) => p.x);
+          const n = xs.length;
+
+          for (let pass = 0; pass < passes; pass += 1) {
+            const next = xs.slice();
+            for (let i = 2; i < n - 2; i += 1) {
+              next[i] = (xs[i - 2] + 4 * xs[i - 1] + 6 * xs[i] + 4 * xs[i + 1] + xs[i + 2]) / 16;
+            }
+            next[1] = (xs[0] + 2 * xs[1] + xs[2]) * 0.25;
+            next[n - 2] = (xs[n - 3] + 2 * xs[n - 2] + xs[n - 1]) * 0.25;
+            xs = next;
+          }
+
+          return points.map((p, i) => ({ x: xs[i], y: p.y }));
+        }
+
+        function relaxFeatureKinks(points, R, intensity = 1) {
+          if (!points || points.length < 5) return points;
+          if (intensity <= 1e-4) return points;
+          let xs = points.map((p) => p.x);
+          const n = xs.length;
+          const level = clamp(intensity, 0, 1);
+
+          for (let pass = 0; pass < 2; pass += 1) {
+            const next = xs.slice();
+            for (let i = 2; i < n - 2; i += 1) {
+              const yNorm = points[i].y / Math.max(1e-6, R);
+              const zone = Math.max(
+                gaussian(yNorm, -0.02, 0.11),
+                gaussian(yNorm, 0.14, 0.13),
+                gaussian(yNorm, 0.24, 0.17),
+                gaussian(yNorm, 0.34, 0.13)
+              );
+              if (zone < 0.08) continue;
+
+              const dPrev = xs[i] - xs[i - 1];
+              const dNext = xs[i + 1] - xs[i];
+              const cusp = dPrev * dNext < 0;
+              const curvatureN = Math.abs(xs[i + 1] - 2 * xs[i] + xs[i - 1]) / Math.max(1e-6, R);
+              const curvGate = smoothstep(0.014, 0.062, curvatureN);
+              const blend =
+                zone * (cusp ? 0.72 : 0.44) * curvGate * (0.7 + 0.3 * level);
+              if (blend <= 1e-4) continue;
+
+              const localAvg = (xs[i - 1] + 2 * xs[i] + xs[i + 1]) * 0.25;
+              next[i] = xs[i] * (1 - blend) + localAvg * blend;
+            }
+            xs = next;
+          }
+
+          return points.map((p, i) => ({ x: xs[i], y: p.y }));
+        }
+
+        function limitDividerCurvature(points, R, intensity = 1, passes = 2) {
+          if (!points || points.length < 5) return points;
+          const n = points.length;
+          let xs = points.map((p) => p.x);
+          const level = clamp(intensity, 0, 1);
+          const blendBase = 0.42 + 0.28 * level;
+
+          for (let pass = 0; pass < passes; pass += 1) {
+            const next = xs.slice();
+            for (let i = 1; i < n - 1; i += 1) {
+              const yNorm = clamp(points[i].y / Math.max(1e-6, R), -1, 1);
+              const zone =
+                0.35 +
+                0.65 *
+                  Math.max(
+                    gaussian(yNorm, -0.02, 0.16),
+                    gaussian(yNorm, 0.17, 0.2),
+                    gaussian(yNorm, 0.36, 0.2)
+                  );
+              const maxCurv = Math.max(1e-4, R * (0.011 + 0.008 * zone));
+              const curv = xs[i + 1] - 2 * xs[i] + xs[i - 1];
+              const clampedCurv = clamp(curv, -maxCurv, maxCurv);
+              if (Math.abs(curv - clampedCurv) <= 1e-4) continue;
+              const target = (xs[i - 1] + xs[i + 1] - clampedCurv) * 0.5;
+              next[i] = lerp(xs[i], target, blendBase);
+            }
+            xs = next;
+          }
+
+          return points.map((p, i) => ({ x: xs[i], y: p.y }));
+        }
+
+        function enforceFaceIdentityTopology(points, R, deformAmount = 0) {
+          if (!points || points.length < 5) return points;
+          const n = points.length;
+          let xs = points.map((p) => p.x);
+          const ys = points.map((p) => p.y);
+          const smooth = (arr) => {
+            const next = arr.slice();
+            for (let i = 1; i < n - 1; i += 1) {
+              next[i] = (arr[i - 1] + 2 * arr[i] + arr[i + 1]) * 0.25;
+            }
+            return next;
+          };
+
+          const localYDrive = clamp(
+            (state.whiteLocalShiftY - state.blackLocalShiftY) * 0.07 +
+              (state.whiteLift - state.blackLift) * 0.05,
+            -0.12,
+            0.12
+          );
+          let noseY = clamp(0.02 + localYDrive, -0.1, 0.14);
+          let mouthY = clamp(
+            0.31 +
+              localYDrive * 0.82 +
+              (state.whiteMouthHeight - state.blackMouthHeight) * 0.03,
+            0.2,
+            0.52
+          );
+          if (mouthY - noseY < 0.18) mouthY = noseY + 0.18;
+          mouthY = clamp(mouthY, 0.2, 0.54);
+
+          const widthDrive = Math.tanh((state.whiteMouthWidth - state.blackMouthWidth) * 0.16);
+          const heightDrive = Math.tanh((state.whiteMouthHeight - state.blackMouthHeight) * 0.18);
+          const noseDrive = Math.tanh((state.whiteLift - state.blackLift) * 0.2);
+          const logicStrength = clamp(
+            0.56 + 0.24 * smoothstep(0.08, 0.88, deformAmount),
+            0.56,
+            0.82
+          );
+
+          for (let i = 0; i < n; i += 1) {
+            const yNorm = clamp(ys[i] / Math.max(1e-6, R), -1, 1);
+            const base = sampleProfile(dividerProfile, yNorm) * R;
+
+            const noseCore = gaussian(yNorm, noseY, 0.13);
+            const noseTip = gaussian(yNorm, noseY - 0.07, 0.085);
+            const noseBase = gaussian(yNorm, noseY + 0.11, 0.11);
+            const roundNose =
+              (0.11 + 0.045 * noseDrive) * noseCore * R +
+              (0.055 + 0.015 * noseDrive) * noseTip * R -
+              0.03 * noseBase * R;
+
+            const mouthCore = gaussian(yNorm, mouthY, 0.095);
+            const mouthTail = gaussian(yNorm, mouthY + 0.085, 0.08);
+            const mouthEntry = gaussian(yNorm, mouthY - 0.08, 0.1);
+            const sharpMouth =
+              (0.13 + 0.06 * widthDrive + 0.04 * heightDrive) * mouthCore * R -
+              (0.04 + 0.02 * heightDrive) * mouthTail * R +
+              0.02 * mouthEntry * R;
+
+            const target = base + roundNose - sharpMouth;
+            const zone = clamp(
+              0.68 * gaussian(yNorm, noseY, 0.2) + 0.94 * gaussian(yNorm, mouthY, 0.2),
+              0,
+              1
+            );
+            xs[i] = lerp(xs[i], target, zone * logicStrength);
+          }
+
+          let noseFront = -Infinity;
+          for (let i = 0; i < n; i += 1) {
+            const yNorm = clamp(ys[i] / Math.max(1e-6, R), -1, 1);
+            const band = gaussian(yNorm, noseY, 0.15);
+            if (band > 0.14) {
+              noseFront = Math.max(noseFront, xs[i]);
+            }
+          }
+
+          if (Number.isFinite(noseFront)) {
+            for (let i = 0; i < n; i += 1) {
+              const yNorm = clamp(ys[i] / Math.max(1e-6, R), -1, 1);
+              const gate =
+                smoothstep(noseY + 0.08, mouthY + 0.02, yNorm) *
+                (1 - smoothstep(mouthY + 0.2, mouthY + 0.28, yNorm));
+              if (gate <= 1e-4) continue;
+              const cap = noseFront - (0.02 + 0.012 * gate) * R;
+              xs[i] = lerp(
+                xs[i],
+                softClampUpper(xs[i], cap, Math.max(1.1, R * 0.011)),
+                gate
+              );
+            }
+          }
+
+          xs = smooth(xs);
+          xs = smooth(xs);
+          return points.map((p, i) => ({ x: xs[i], y: p.y }));
+        }
+
+        function limitDividerStep(points, R, maxStepNorm = 0.022) {
+          if (!points || points.length < 3) return points;
+          const maxStep = Math.max(1e-4, Math.abs(R) * maxStepNorm);
+          const xs = points.map((p) => p.x);
+          const n = xs.length;
+          const soften = (delta) => maxStep * Math.tanh(delta / maxStep);
+
+          for (let i = 1; i < n; i += 1) {
+            xs[i] = xs[i - 1] + soften(xs[i] - xs[i - 1]);
+          }
+          for (let i = n - 2; i >= 0; i -= 1) {
+            xs[i] = xs[i + 1] + soften(xs[i] - xs[i + 1]);
+          }
+
+          return points.map((p, i) => ({ x: xs[i], y: p.y }));
+        }
+
+        function stabilizeDividerNearRim(points, R, deformAmount) {
+          if (!points || points.length < 3) return points;
+          const maxBlend = clamp(0.08 + deformAmount * 0.1, 0.08, 0.2);
+
+          return points.map((point) => {
+            const y = point.y;
+            const outerX = Math.sqrt(Math.max(0, R * R - y * y));
+            if (outerX <= 1e-6) return point;
+
+            const separationN = clamp((outerX - Math.abs(point.x)) / outerX, 0, 1);
+            const rimProximity = clamp((0.22 - separationN) / 0.22, 0, 1);
+            if (rimProximity <= 0) return point;
+
+            const yNorm = clamp(y / Math.max(1e-6, R), -1, 1);
+            const baseX = sampleProfile(dividerProfile, yNorm) * R;
+            const blend = maxBlend * rimProximity * rimProximity;
+            return {
+              x: point.x * (1 - blend) + baseX * blend,
+              y,
+            };
+          });
+        }
+
+        function buildDivider(R) {
+          const steps = 760;
+          const points = [];
+          for (let i = 0; i <= steps; i += 1) {
+            const y = -R + (2 * R * i) / steps;
+            points.push({ x: dividerXAtY(y, R), y });
+          }
+
+          const deform = getGlobalDeformAmount();
+          const mouthEnergy = clamp(
+            Math.max(
+              Math.abs(state.whiteMouthWidth),
+              Math.abs(state.blackMouthWidth),
+              Math.abs(state.whiteMouthHeight),
+              Math.abs(state.blackMouthHeight)
+            ) / 4.6,
+            0,
+            1
+          );
+          if (deform <= 0.004 && mouthEnergy <= 0.004) {
+            return points;
+          }
+          const preStep = 0.026 - mouthEnergy * 0.006;
+          const postStep = 0.018 - mouthEnergy * 0.005;
+          const smoothPasses = (deform < 0.22 ? 5 : 6) + (mouthEnergy > 0.28 ? 1 : 0);
+          const tailPasses = mouthEnergy > 0.42 ? 2 : 2;
+
+          const pre = limitDividerStep(points, R, preStep);
+          const smoothed = smoothDividerPoints(pre, smoothPasses);
+          const post = limitDividerStep(smoothed, R, postStep);
+          const relaxed = relaxFeatureKinks(post, R, mouthEnergy);
+          const curvatureLimited = limitDividerCurvature(
+            relaxed,
+            R,
+            mouthEnergy,
+            mouthEnergy > 0.45 ? 3 : 2
+          );
+          const topologyLocked = enforceFaceIdentityTopology(curvatureLimited, R, deform);
+          const rimStabilized = stabilizeDividerNearRim(topologyLocked, R, deform);
+          return smoothDividerPoints(rimStabilized, tailPasses);
+        }
+
+        function dividerXFromPointsAtY(points, y, R) {
+          if (!points || points.length < 2) return dividerXAtY(y, R);
+          if (y <= -R) return points[0].x;
+          if (y >= R) return points[points.length - 1].x;
+
+          const normalized = (y + R) / (2 * R);
+          const t = normalized * (points.length - 1);
+          const i0 = Math.floor(t);
+          const i1 = Math.min(points.length - 1, i0 + 1);
+          const localT = t - i0;
+          const p0 = points[i0];
+          const p1 = points[i1];
+          return p0.x + (p1.x - p0.x) * localT;
+        }
+
+        function dividerSlopeFromPointsAtY(points, y, R) {
+          const step = (2 * R) / Math.max(32, points.length - 1);
+          const y0 = clamp(y - step, -R, R);
+          const y1 = clamp(y + step, -R, R);
+          const x0 = dividerXFromPointsAtY(points, y0, R);
+          const x1 = dividerXFromPointsAtY(points, y1, R);
+          return (x1 - x0) / Math.max(1e-6, y1 - y0);
+        }
+
+        function dividerNormalDistanceFromPoints(x, y, R, points) {
+          const dx = x - dividerXFromPointsAtY(points, y, R);
+          const slope = dividerSlopeFromPointsAtY(points, y, R);
           return Math.abs(dx) / Math.sqrt(1 + slope * slope);
+        }
+
+        function isWhiteAt(x, y, R, dividerPoints) {
+          return x <= dividerXFromPointsAtY(dividerPoints, y, R);
         }
 
         function easeStateTowardTarget() {
@@ -423,837 +1531,89 @@
             }
             const follow = drag.active ? 0.3 : 0.2;
             state[key] = current + delta * follow;
-            if (Math.abs(target - state[key]) <= 1e-4) {
-              state[key] = target;
-            } else {
-              moving = true;
-            }
+            if (Math.abs(target - state[key]) > 1e-4) moving = true;
           }
           return moving;
         }
 
-        function getGrabInfluence(yNorm) {
-          const yn = clamp(yNorm, -1, 1);
-          const sigma = 0.46;
-          const topRaw = Math.exp(-Math.pow((yn + 0.52) / sigma, 2));
-          const bottomRaw = Math.exp(-Math.pow((yn - 0.52) / sigma, 2));
-          const sum = topRaw + bottomRaw + 1e-9;
-          return { top: topRaw / sum, bottom: bottomRaw / sum };
+        function appendSmoothDivider(points) {
+          if (!points || points.length < 2) return;
+          ctx.moveTo(points[0].x, points[0].y);
+          for (let i = 1; i < points.length - 1; i += 1) {
+            const curr = points[i];
+            const next = points[i + 1];
+            const midX = (curr.x + next.x) * 0.5;
+            const midY = (curr.y + next.y) * 0.5;
+            ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+          }
+          const last = points[points.length - 1];
+          ctx.lineTo(last.x, last.y);
         }
 
-        function resizeCanvasToDisplaySize() {
-          const rect = canvas.getBoundingClientRect();
-          const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-          const w = Math.max(2, Math.round(rect.width * dpr));
-          const h = Math.max(2, Math.round(rect.height * dpr));
-          if (canvas.width !== w || canvas.height !== h) {
-            canvas.width = w;
-            canvas.height = h;
-          }
-        }
-
-        function getLocalPoint(e) {
-          const rect = canvas.getBoundingClientRect();
-          const sx = canvas.width / rect.width;
-          const sy = canvas.height / rect.height;
-          const x = (e.clientX - rect.left) * sx;
-          const y = (e.clientY - rect.top) * sy;
-          return { x: x - canvas.width / 2, y: y - canvas.height / 2 };
-        }
-
-        function getRadius() {
-          return Math.min(canvas.width, canvas.height) * 0.44;
-        }
-
-        function getCanvasScale() {
-          return canvas.width / Math.max(1, canvas.clientWidth || 1);
-        }
-
-        function isInsideCircle(x, y, R) {
-          return x * x + y * y <= R * R;
-        }
-
-        function getLobeCoefficients() {
-          const whiteDelta = (state.whitePush - 0.5) * 2;
-          const blackDelta = (state.blackPush - 0.5) * 2;
-          const topDrive = 1.36 * whiteDelta - 0.66 * blackDelta;
-          const bottomDrive = 1.36 * blackDelta - 0.66 * whiteDelta;
-          const topCoeff = clamp(0.5 * Math.exp(topDrive), 0.12, 1.45);
-          const bottomCoeff = clamp(0.5 * Math.exp(bottomDrive), 0.12, 1.45);
-          return { whiteDelta, blackDelta, topCoeff, bottomCoeff };
-        }
-
-        function getLobeCenters(R) {
-          const half = R * 0.5;
-          let topCenter = -half + state.whiteLift * 0.94 * R;
-          let bottomCenter = half + state.blackLift * 0.94 * R;
-
-          topCenter = clamp(topCenter, -1.14 * R, 0.92 * R);
-          bottomCenter = clamp(bottomCenter, -0.92 * R, 1.14 * R);
-
-          const minGap = 0.08 * R;
-          const maxGap = 1.9 * R;
-          let gap = bottomCenter - topCenter;
-          if (gap < minGap) {
-            const spread = (minGap - gap) * 0.5;
-            topCenter -= spread;
-            bottomCenter += spread;
-          } else if (gap > maxGap) {
-            const compress = (gap - maxGap) * 0.5;
-            topCenter += compress;
-            bottomCenter -= compress;
-          }
-          gap = bottomCenter - topCenter;
-          if (gap < minGap) {
-            const mid = (topCenter + bottomCenter) * 0.5;
-            topCenter = mid - minGap * 0.5;
-            bottomCenter = mid + minGap * 0.5;
-          }
-
-          return { topCenter, bottomCenter };
-        }
-
-        function baseDividerX(y, R) {
-          const half = R * 0.5;
-          if (y <= 0) {
-            const dy = y + half;
-            return Math.sqrt(Math.max(0, half * half - dy * dy));
-          }
-          const dy = y - half;
-          return -Math.sqrt(Math.max(0, half * half - dy * dy));
-        }
-
-        function dividerXAtY(y, R) {
-          const t = y / R;
-          const { whiteDelta, blackDelta, topCoeff, bottomCoeff } = getLobeCoefficients();
-          const { topCenter, bottomCenter } = getLobeCenters(R);
-          const dominance = clamp(state.whitePush - state.blackPush, -1, 1);
-          const dominanceAbs = Math.abs(dominance);
-          const outerX = Math.sqrt(Math.max(0, R * R - y * y));
-
-          const base = baseDividerX(y, R);
-          const sigma = 0.39 * R;
-          const topProfile = Math.exp(-Math.pow((y - topCenter) / sigma, 2));
-          const bottomProfile = Math.exp(-Math.pow((y - bottomCenter) / sigma, 2));
-          const middleProfile = Math.exp(-Math.pow(y / (0.52 * R), 2));
-          const envelope = Math.pow(Math.max(0, 1 - t * t), 1.25);
-          const edgeEnvelope = 0.3 + 0.7 * envelope;
-          const dominanceBoost = 1 + 2.2 * Math.pow(dominanceAbs, 2.1);
-
-          const topDrive = topCoeff - 0.5;
-          const bottomDrive = bottomCoeff - 0.5;
-          let deform =
-            0.78 * topDrive * topProfile -
-            0.78 * bottomDrive * bottomProfile +
-            0.2 * (topDrive - bottomDrive) * middleProfile +
-            0.52 * state.whiteLift * topProfile -
-            0.52 * state.blackLift * bottomProfile +
-            0.34 * (state.whiteLift - state.blackLift) * t;
-          deform *= envelope * R;
-
-          const localSigma = 0.36 * R;
-          const whiteLocalCenter = clamp(
-            (state.whiteFocusY + state.whiteLift * 0.08) * R,
-            -0.95 * R,
-            0.95 * R
-          );
-          const blackLocalCenter = clamp(
-            (state.blackFocusY + state.blackLift * 0.08) * R,
-            -0.95 * R,
-            0.95 * R
-          );
-          const whiteLocalProfile = Math.exp(-Math.pow((y - whiteLocalCenter) / localSigma, 2));
-          const blackLocalProfile = Math.exp(-Math.pow((y - blackLocalCenter) / localSigma, 2));
-          const rawLocalDeform =
-            (0.48 * state.whiteLocalShiftX * whiteLocalProfile -
-              0.48 * state.blackLocalShiftX * blackLocalProfile) *
-            edgeEnvelope *
-            envelope *
-            R;
-          const basePlusDeform = base + deform;
-          const edgeDistanceN =
-            outerX > 1e-6 ? clamp((outerX - Math.abs(basePlusDeform)) / outerX, 0, 1) : 0;
-          const localEdgeGuard = 0.08 + 0.92 * Math.pow(edgeDistanceN, 0.7);
-          const localDeform = rawLocalDeform * localEdgeGuard;
-
-          let x = base + deform + localDeform;
-          const dominanceShift =
-            dominance * outerX * (0.66 + 0.1 * middleProfile) * edgeEnvelope * dominanceBoost;
-          x += dominanceShift;
-
-          const limit = outerX * 0.9992;
-          if (limit <= 1e-9) return 0;
-          x = limit * Math.tanh(x / (limit + 1e-9));
-          return x;
-        }
-
-        function getGlobalDeformAmount() {
-          const pushDelta =
-            Math.max(Math.abs(state.whitePush - 0.5), Math.abs(state.blackPush - 0.5)) * 2;
-          const liftDelta = Math.max(Math.abs(state.whiteLift), Math.abs(state.blackLift));
-          return clamp(Math.max(pushDelta, liftDelta), 0, 1);
-        }
-
-        function smoothDividerPoints(points, passes = 2) {
-          if (points.length < 5 || passes <= 0) return points;
-          let xs = points.map((point) => point.x);
-          const n = xs.length;
-
-          for (let pass = 0; pass < passes; pass += 1) {
-            const next = xs.slice();
-            for (let i = 2; i < n - 2; i += 1) {
-              next[i] =
-                (xs[i - 2] + 4 * xs[i - 1] + 6 * xs[i] + 4 * xs[i + 1] + xs[i + 2]) / 16;
-            }
-            next[1] = (xs[0] + 2 * xs[1] + xs[2]) * 0.25;
-            next[n - 2] = (xs[n - 3] + 2 * xs[n - 2] + xs[n - 1]) * 0.25;
-            xs = next;
-          }
-
-          return points.map((point, index) => ({ x: xs[index], y: point.y }));
-        }
-
-        function stabilizeDividerNearRim(points, R, globalDeform) {
-          if (points.length < 3) return points;
-          const maxBlend = clamp(0.12 + globalDeform * 0.08, 0.12, 0.2);
-
-          return points.map((point) => {
-            const y = point.y;
-            const outerX = Math.sqrt(Math.max(0, R * R - y * y));
-            if (outerX <= 1e-6) return point;
-            const separationN = clamp((outerX - Math.abs(point.x)) / outerX, 0, 1);
-            const rimProximity = clamp((0.2 - separationN) / 0.2, 0, 1);
-            if (rimProximity <= 0) return point;
-
-            const baseX = baseDividerX(y, R);
-            const blend = maxBlend * rimProximity * rimProximity;
-            return {
-              x: point.x * (1 - blend) + baseX * blend,
-              y,
-            };
-          });
-        }
-
-        function buildDivider(R, globalDeform, steps = 680) {
-          const points = [];
-          for (let i = 0; i <= steps; i += 1) {
-            const y = -R + (2 * R * i) / steps;
-            points.push({ x: dividerXAtY(y, R), y });
-          }
-          const smoothPasses = globalDeform < 0.04 ? 2 : globalDeform < 0.24 ? 4 : 5;
-          const smoothed = smoothDividerPoints(points, smoothPasses);
-          const rimStabilized = stabilizeDividerNearRim(smoothed, R, globalDeform);
-          return smoothDividerPoints(rimStabilized, 1);
-        }
-
-        function dividerXFromPointsAtY(dividerPoints, y, R) {
-          const points = dividerPoints;
-          if (!points || points.length < 2) return dividerXAtY(y, R);
-          if (y <= -R) return points[0].x;
-          if (y >= R) return points[points.length - 1].x;
-
-          const normalized = (y + R) / (2 * R);
-          const t = normalized * (points.length - 1);
-          const i0 = Math.floor(t);
-          const i1 = Math.min(points.length - 1, i0 + 1);
-          const localT = t - i0;
-          const p0 = points[i0];
-          const p1 = points[i1];
-          return p0.x + (p1.x - p0.x) * localT;
-        }
-
-        function dividerSlopeFromPointsAtY(dividerPoints, y, R) {
-          const points = dividerPoints;
-          if (!points || points.length < 2) return dividerSlopeAtY(y, R);
-          const sampleStep = (2 * R) / Math.max(32, points.length - 1);
-          const y0 = clamp(y - sampleStep, -R, R);
-          const y1 = clamp(y + sampleStep, -R, R);
-          const dy = Math.max(1e-6, y1 - y0);
-          const x0 = dividerXFromPointsAtY(points, y0, R);
-          const x1 = dividerXFromPointsAtY(points, y1, R);
-          return (x1 - x0) / dy;
-        }
-
-        function dividerNormalDistanceFromPoints(x, y, R, dividerPoints) {
-          const points = dividerPoints;
-          if (!points || points.length < 2) return dividerNormalDistance(x, y, R);
-          const dx = x - dividerXFromPointsAtY(points, y, R);
-          const slope = dividerSlopeFromPointsAtY(points, y, R);
-          return Math.abs(dx) / Math.sqrt(1 + slope * slope);
-        }
-
-        function isWhiteAt(x, y, R, dividerPoints = null) {
-          const dividerX = dividerPoints
-            ? dividerXFromPointsAtY(dividerPoints, y, R)
-            : dividerXAtY(y, R);
-          return x <= dividerX;
-        }
-
-        function findDotAuto(
-          R,
-          region,
-          padding,
-          lobeCenters,
-          stackAxisX,
-          dividerPoints
-        ) {
-          const isTop = region === "top";
-          const dominance = clamp(state.whitePush - state.blackPush, -1, 1);
-          const lift = isTop ? state.whiteLift : state.blackLift;
-          const focusRaw = isTop ? state.whiteFocusY : state.blackFocusY;
-          const focusClamped = isTop ? clamp(focusRaw, -0.95, 0.2) : clamp(focusRaw, -0.2, 0.95);
-          const baseAnchorY = isTop ? -0.44 * R : 0.44 * R;
-          const lobeCenterY = isTop ? lobeCenters.topCenter : lobeCenters.bottomCenter;
-          const preferredY = clamp(
-            baseAnchorY +
-              lift * 0.38 * R +
-              focusClamped * 0.08 * R +
-              (lobeCenterY - baseAnchorY) * 0.24,
-            isTop ? -0.95 * R : -0.22 * R,
-            isTop ? 0.22 * R : 0.95 * R
-          );
-
-          const getHostRangeAtY = (y) => {
-            const outer = Math.sqrt(Math.max(0, R * R - y * y));
-            const divider = clamp(dividerXFromPointsAtY(dividerPoints, y, R), -outer, outer);
-            const left = isTop ? -outer : divider;
-            const right = isTop ? divider : outer;
-            return { left, right, span: Math.max(0, right - left) };
-          };
-
-          const yAnchor = preferredY;
-          const hostAtAnchor = getHostRangeAtY(preferredY);
-          const xAnchor =
-            stackAxisX * 0.86 +
-            (hostAtAnchor.left + hostAtAnchor.right) * 0.14 +
-            dominance * (isTop ? 0.015 : -0.015) * R;
-          const spanX = 0.88 * R;
-          const spanY = 0.92 * R;
-          const cols = 42;
-          const rows = 42;
-          const yMin = Math.max(isTop ? -R : -0.24 * R, yAnchor - spanY * 0.5);
-          const yMax = Math.min(isTop ? 0.24 * R : R, yAnchor + spanY * 0.5);
-
-          let best = null;
-          const pool = [];
-
-          for (let iy = 0; iy <= rows; iy += 1) {
-            const y = yMin + ((yMax - yMin) * iy) / rows;
-            const outer = Math.sqrt(Math.max(0, R * R - y * y));
-            for (let ix = 0; ix <= cols; ix += 1) {
-              const x = xAnchor - spanX * 0.5 + (spanX * ix) / cols;
-              if (Math.abs(x) >= outer) continue;
-
-              const white = isWhiteAt(x, y, R, dividerPoints);
-              if ((isTop && !white) || (!isTop && white)) continue;
-
-              const dOuter = R - Math.hypot(x, y);
-              const dDivider = dividerNormalDistanceFromPoints(x, y, R, dividerPoints);
-              const maxR = Math.min(dOuter, dDivider) - padding;
-              if (maxR <= 0) continue;
-
-              const roomN = maxR / R;
-              const depthN = dDivider / R;
-              const verticalN = 1 - clamp(Math.abs(y - yAnchor) / (0.52 * R), 0, 1);
-              const anchorN = 1 - clamp(Math.hypot((x - xAnchor) / (0.64 * R), (y - yAnchor) / (0.52 * R)), 0, 1);
-              const stackN = 1 - clamp(Math.abs(x - stackAxisX) / (0.34 * R), 0, 1);
-              const score =
-                1.92 * roomN + 0.2 * depthN + 0.2 * verticalN + 0.15 * anchorN + 1.05 * stackN;
-              const candidate = { x, y, maxR, score };
-              pool.push(candidate);
-
-              if (!best || score > best.score) {
-                best = candidate;
-              }
-            }
-          }
-
-          if (!best) {
-            return { x: xAnchor, y: yAnchor, r: R * 0.08, room: R * 0.08 };
-          }
-
-          let chosen = best;
-          if (pool.length > 1) {
-            const cutoff = best.score - 0.07;
-            let wSum = 0;
-            let xSum = 0;
-            let ySum = 0;
-            let roomSum = 0;
-            for (let i = 0; i < pool.length; i += 1) {
-              const candidate = pool[i];
-              if (candidate.score < cutoff) continue;
-              const weight = Math.exp((candidate.score - best.score) * 11);
-              wSum += weight;
-              xSum += candidate.x * weight;
-              ySum += candidate.y * weight;
-              roomSum += candidate.maxR * weight;
-            }
-            if (wSum > 1e-6) {
-              chosen = {
-                x: xSum / wSum,
-                y: ySum / wSum,
-                maxR: roomSum / wSum,
-                score: best.score,
-              };
-            }
-          }
-
-          const maxAllowed = Math.min(chosen.maxR * 0.42, R * 0.2);
-          const minAllowed = Math.min(R * 0.008, maxAllowed);
-          return {
-            x: chosen.x,
-            y: chosen.y,
-            r: clamp(chosen.maxR * 0.24, minAllowed, maxAllowed),
-            room: chosen.maxR,
-          };
-        }
-
-        function getDotRoomAt(x, y, R, isTop, padding, dividerPoints) {
-          if (!isInsideCircle(x, y, R)) return 0;
-          const white = isWhiteAt(x, y, R, dividerPoints);
-          if ((isTop && !white) || (!isTop && white)) return 0;
-          const dOuter = R - Math.hypot(x, y);
-          const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
-          const dDivider = Math.abs(x - dividerX);
-          const coarseRoom = Math.max(0, Math.min(dOuter, dDivider) - padding);
-
-          const raySamples = 20;
-          let nearestEdge = Infinity;
-          for (let i = 0; i < raySamples; i += 1) {
-            const angle = (i / raySamples) * TAU;
-            const dirX = Math.cos(angle);
-            const dirY = Math.sin(angle);
-            const boundaryDist = rayBoundaryDistance(x, y, dirX, dirY, R, isTop, dividerPoints);
-            nearestEdge = Math.min(nearestEdge, boundaryDist);
-          }
-          const sampledRoom = Math.max(0, nearestEdge - padding);
-          return coarseRoom * 0.2 + sampledRoom * 0.8;
-        }
-
-        function constrainDotToBlob(targetX, targetY, R, r, isTop, padding, dividerPoints) {
-          const safePadding = padding;
-          const safeOuterR = Math.max(0, R - (r + safePadding));
-          const steps = 260;
-          let best = null;
-
-          for (let i = 0; i <= steps; i += 1) {
-            const y = -safeOuterR + (2 * safeOuterR * i) / steps;
-            const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
-            const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
-            const wall = r + safePadding;
-            let left = -outerX;
-            let right = outerX;
-
-            if (isTop) {
-              right = Math.min(right, dividerX - wall);
-            } else {
-              left = Math.max(left, dividerX + wall);
-            }
-            if (right < left) continue;
-
-            const x = clamp(targetX, left, right);
-            const distSq = (x - targetX) * (x - targetX) + (y - targetY) * (y - targetY);
-            if (!best || distSq < best.distSq) {
-              best = { x, y, distSq };
-            }
-          }
-
-          if (!best) {
-            return null;
-          }
-          return { x: best.x, y: best.y };
-        }
-
-        function constrainDotXAtY(targetX, y, R, r, isTop, padding, dividerPoints) {
-          const safePadding = padding;
-          const safeOuterR = Math.max(0, R - (r + safePadding));
-          if (Math.abs(y) > safeOuterR) return null;
-          const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
-          const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
-          const wall = r + safePadding;
-          let left = -outerX;
-          let right = outerX;
-          if (isTop) {
-            right = Math.min(right, dividerX - wall);
-          } else {
-            left = Math.max(left, dividerX + wall);
-          }
-          if (right < left) return null;
-          return clamp(targetX, left, right);
-        }
-
-        function fitDotInsideBlob(dot, R, isTop, padding, dividerPoints) {
-          let radius = Math.max(0.35, dot.r);
-          let point = constrainDotToBlob(dot.x, dot.y, R, radius, isTop, padding, dividerPoints);
-
-          for (let i = 0; i < 8 && !point; i += 1) {
-            radius *= 0.84;
-            point = constrainDotToBlob(dot.x, dot.y, R, radius, isTop, padding, dividerPoints);
-          }
-
-          if (!point) {
-            const fallbackY = isTop ? -0.5 * R : 0.5 * R;
-            const fallbackX = dividerXFromPointsAtY(dividerPoints, 0, R);
-            radius = Math.max(0.35, Math.min(radius, R * 0.035));
-            point = constrainDotToBlob(
-              fallbackX,
-              fallbackY,
-              R,
-              radius,
-              isTop,
-              padding,
-              dividerPoints
-            );
-          }
-
-          if (!point) {
-            point = { x: dot.x, y: dot.y };
-          }
-
-          return { x: point.x, y: point.y, r: radius };
-        }
-
-        function stabilizeDotCenter(targetDot, key, R, isTop, padding, dividerPoints) {
-          const memory = dotMemory[key];
-          const fittedTarget = fitDotInsideBlob(targetDot, R, isTop, padding, dividerPoints);
-
-          if (!memory) {
-            dotMemory[key] = { x: fittedTarget.x, y: fittedTarget.y, r: fittedTarget.r };
-            return fittedTarget;
-          }
-
-          const isDraggingDot =
-            (key === "top" && drag.active && drag.mode === "topDotMove") ||
-            (key === "bottom" && drag.active && drag.mode === "bottomDotMove");
-          const distN =
-            Math.hypot(fittedTarget.x - memory.x, fittedTarget.y - memory.y) / Math.max(1e-6, R);
-          const follow = isDraggingDot
-            ? clamp(0.74 + distN * 0.18, 0.74, 0.92)
-            : clamp(0.14 + distN * 0.3, 0.14, 0.42);
-          const rFollow = isDraggingDot ? 0.72 : 0.3;
-
-          memory.x += (fittedTarget.x - memory.x) * follow;
-          memory.y += (fittedTarget.y - memory.y) * follow;
-          if (typeof memory.r !== "number") {
-            memory.r = fittedTarget.r;
-          }
-          memory.r += (fittedTarget.r - memory.r) * rFollow;
-
-          const fittedMemory = fitDotInsideBlob(
-            { x: memory.x, y: memory.y, r: memory.r },
-            R,
-            isTop,
-            padding,
-            dividerPoints
-          );
-          memory.x = fittedMemory.x;
-          memory.y = fittedMemory.y;
-          memory.r = fittedMemory.r;
-
-          return { x: memory.x, y: memory.y, r: memory.r };
-        }
-
-        function geometry() {
-          const R = getRadius();
-          const padding = DOT_PADDING_CSS * getCanvasScale();
-          const globalDeform = getGlobalDeformAmount();
-          const dividerPoints = buildDivider(R, globalDeform);
-          const lobeCenters = getLobeCenters(R);
-          const stackAxisX = dividerXFromPointsAtY(dividerPoints, 0, R);
-          const topAuto = findDotAuto(
-            R,
-            "top",
-            padding,
-            lobeCenters,
-            stackAxisX,
-            dividerPoints
-          );
-          const bottomAuto = findDotAuto(
-            R,
-            "bottom",
-            padding,
-            lobeCenters,
-            stackAxisX,
-            dividerPoints
-          );
-          const topPlaced = constrainDotToBlob(
-            topAuto.x,
-            topAuto.y,
-            R,
-            topAuto.r,
-            true,
-            padding,
-            dividerPoints
-          );
-          const bottomPlaced = constrainDotToBlob(
-            bottomAuto.x,
-            bottomAuto.y,
-            R,
-            bottomAuto.r,
-            false,
-            padding,
-            dividerPoints
-          );
-          let topTarget = topPlaced
-            ? { x: topPlaced.x, y: topPlaced.y, r: topAuto.r }
-            : { x: topAuto.x, y: topAuto.y, r: topAuto.r };
-          let bottomTarget = bottomPlaced
-            ? { x: bottomPlaced.x, y: bottomPlaced.y, r: bottomAuto.r }
-            : { x: bottomAuto.x, y: bottomAuto.y, r: bottomAuto.r };
-
-          if (dotUser.top.active) {
-            const manualTop = getDotUserPosition("top", R);
-            const fittedTop = constrainDotToBlob(
-              manualTop.x,
-              manualTop.y,
-              R,
-              Math.max(0.35, R * 0.004),
-              true,
-              padding,
-              dividerPoints
-            );
-            if (fittedTop) {
-              topTarget.x = fittedTop.x;
-              topTarget.y = fittedTop.y;
-            }
-          }
-
-          if (dotUser.bottom.active) {
-            const manualBottom = getDotUserPosition("bottom", R);
-            const fittedBottom = constrainDotToBlob(
-              manualBottom.x,
-              manualBottom.y,
-              R,
-              Math.max(0.35, R * 0.004),
-              false,
-              padding,
-              dividerPoints
-            );
-            if (fittedBottom) {
-              bottomTarget.x = fittedBottom.x;
-              bottomTarget.y = fittedBottom.y;
-            }
-          }
-
-          const stackBias = clamp(0.9 - globalDeform * 0.1, 0.74, 0.9);
-          if (!dotUser.top.active) {
-            const topStackX = constrainDotXAtY(
-              stackAxisX,
-              topTarget.y,
-              R,
-              topTarget.r,
-              true,
-              padding,
-              dividerPoints
-            );
-            if (topStackX != null) {
-              topTarget.x = topTarget.x * (1 - stackBias) + topStackX * stackBias;
-            }
-          }
-          if (!dotUser.bottom.active) {
-            const bottomStackX = constrainDotXAtY(
-              stackAxisX,
-              bottomTarget.y,
-              R,
-              bottomTarget.r,
-              false,
-              padding,
-              dividerPoints
-            );
-            if (bottomStackX != null) {
-              bottomTarget.x = bottomTarget.x * (1 - stackBias) + bottomStackX * stackBias;
-            }
-          }
-
-          const pairedStackBias = clamp(0.82 - globalDeform * 0.08, 0.68, 0.82);
-          const sharedStackTarget =
-            stackAxisX * 0.72 + ((topTarget.x + bottomTarget.x) * 0.5) * 0.28;
-          if (!dotUser.top.active) {
-            const topSharedX = constrainDotXAtY(
-              sharedStackTarget,
-              topTarget.y,
-              R,
-              topTarget.r,
-              true,
-              padding,
-              dividerPoints
-            );
-            if (topSharedX != null) {
-              topTarget.x = topTarget.x * (1 - pairedStackBias) + topSharedX * pairedStackBias;
-            }
-          }
-          if (!dotUser.bottom.active) {
-            const bottomSharedX = constrainDotXAtY(
-              sharedStackTarget,
-              bottomTarget.y,
-              R,
-              bottomTarget.r,
-              false,
-              padding,
-              dividerPoints
-            );
-            if (bottomSharedX != null) {
-              bottomTarget.x =
-                bottomTarget.x * (1 - pairedStackBias) + bottomSharedX * pairedStackBias;
-            }
-          }
-
-          const topReplaced = constrainDotToBlob(
-            topTarget.x,
-            topTarget.y,
-            R,
-            topTarget.r,
-            true,
-            padding,
-            dividerPoints
-          );
-          if (topReplaced) {
-            topTarget.x = topReplaced.x;
-            topTarget.y = topReplaced.y;
-          }
-          const bottomReplaced = constrainDotToBlob(
-            bottomTarget.x,
-            bottomTarget.y,
-            R,
-            bottomTarget.r,
-            false,
-            padding,
-            dividerPoints
-          );
-          if (bottomReplaced) {
-            bottomTarget.x = bottomReplaced.x;
-            bottomTarget.y = bottomReplaced.y;
-          }
-
-          const topRoom = getDotRoomAt(topTarget.x, topTarget.y, R, true, padding, dividerPoints);
-          const bottomRoom = getDotRoomAt(
-            bottomTarget.x,
-            bottomTarget.y,
-            R,
-            false,
-            padding,
-            dividerPoints
-          );
-          const dotLaunchRadius = R * 0.132;
-          const launchRoom = Math.max(1e-6, 0.5 * R - padding);
-          const topRoomScale = clamp(topRoom / launchRoom, 0.03, 2.5);
-          const bottomRoomScale = clamp(bottomRoom / launchRoom, 0.03, 2.5);
-          const roomToRadiusScale = (ratio) => {
-            const r = clamp(ratio, 0.03, 2.5);
-            if (r <= 1) return r;
-            return 1 + (r - 1) * 0.72;
-          };
-          const topDesiredR = dotLaunchRadius * roomToRadiusScale(topRoomScale);
-          const bottomDesiredR = dotLaunchRadius * roomToRadiusScale(bottomRoomScale);
-          const topMax = Math.min(topRoom * 0.96, R * 0.38);
-          const bottomMax = Math.min(bottomRoom * 0.96, R * 0.38);
-          if (topMax > 0) {
-            topTarget.r = clamp(topDesiredR, Math.min(R * 0.004, topMax), topMax);
-          } else {
-            topTarget.r = Math.max(0.35, R * 0.004);
-          }
-          if (bottomMax > 0) {
-            bottomTarget.r = clamp(bottomDesiredR, Math.min(R * 0.004, bottomMax), bottomMax);
-          } else {
-            bottomTarget.r = Math.max(0.35, R * 0.004);
-          }
-          topTarget = fitDotInsideBlob(topTarget, R, true, padding, dividerPoints);
-          bottomTarget = fitDotInsideBlob(bottomTarget, R, false, padding, dividerPoints);
-
-          if (globalDeform < 0.14) {
-            const neutralT = clamp(1 - globalDeform / 0.14, 0, 1);
-            const neutralAxisX = dividerXFromPointsAtY(dividerPoints, 0, R);
-            const neutralTop = constrainDotToBlob(
-              neutralAxisX,
-              -0.5 * R,
-              R,
-              topTarget.r,
-              true,
-              padding,
-              dividerPoints
-            );
-            const neutralBottom = constrainDotToBlob(
-              neutralAxisX,
-              0.5 * R,
-              R,
-              bottomTarget.r,
-              false,
-              padding,
-              dividerPoints
-            );
-            if (!dotUser.top.active && neutralTop) {
-              topTarget.x = topTarget.x * (1 - neutralT) + neutralTop.x * neutralT;
-              topTarget.y = topTarget.y * (1 - neutralT) + neutralTop.y * neutralT;
-            }
-            if (!dotUser.bottom.active && neutralBottom) {
-              bottomTarget.x = bottomTarget.x * (1 - neutralT) + neutralBottom.x * neutralT;
-              bottomTarget.y = bottomTarget.y * (1 - neutralT) + neutralBottom.y * neutralT;
-            }
-          }
-
-          if (globalDeform < 0.08) {
-            const neutralT = clamp(1 - globalDeform / 0.08, 0, 1);
-            const axisX = dividerXFromPointsAtY(dividerPoints, 0, R);
-            const topAligned = constrainDotToBlob(
-              axisX,
-              topTarget.y,
-              R,
-              topTarget.r,
-              true,
-              padding,
-              dividerPoints
-            );
-            const bottomAligned = constrainDotToBlob(
-              axisX,
-              bottomTarget.y,
-              R,
-              bottomTarget.r,
-              false,
-              padding,
-              dividerPoints
-            );
-
-            if (!dotUser.top.active && topAligned) {
-              topTarget = {
-                x: topTarget.x * (1 - neutralT) + topAligned.x * neutralT,
-                y: topTarget.y * (1 - neutralT) + topAligned.y * neutralT,
-                r: topTarget.r,
-              };
-            }
-            if (!dotUser.bottom.active && bottomAligned) {
-              bottomTarget = {
-                x: bottomTarget.x * (1 - neutralT) + bottomAligned.x * neutralT,
-                y: bottomTarget.y * (1 - neutralT) + bottomAligned.y * neutralT,
-                r: bottomTarget.r,
-              };
-            }
-          }
-
-          const topDot = stabilizeDotCenter(topTarget, "top", R, true, padding, dividerPoints);
-          const bottomDot = stabilizeDotCenter(
-            bottomTarget,
-            "bottom",
-            R,
-            false,
-            padding,
-            dividerPoints
-          );
-
-          if (dotUser.top.active) {
-            setDotUserPosition("top", topDot.x, topDot.y, R);
-          }
-          if (dotUser.bottom.active) {
-            setDotUserPosition("bottom", bottomDot.x, bottomDot.y, R);
-          }
-
-          return { R, dividerPoints, topDot, bottomDot, padding };
-        }
-
-        function drawCircle(cx, cy, r) {
-          if (r <= 0) return;
+        function traceSmoothDivider(points) {
           ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, TAU);
-          ctx.fill();
+          appendSmoothDivider(points);
+        }
+
+        function appendBlackRegionPath(points, R) {
+          appendSmoothDivider(points);
+          const arcSteps = 260;
+          for (let i = 0; i <= arcSteps; i += 1) {
+            const t = i / arcSteps;
+            const theta = Math.PI * 0.5 - Math.PI * t;
+            ctx.lineTo(R * Math.cos(theta), R * Math.sin(theta));
+          }
+          ctx.closePath();
+        }
+
+        function traceBlackRegionPath(points, R) {
+          ctx.beginPath();
+          appendBlackRegionPath(points, R);
+        }
+
+        function clipHostRegion(side, geometryState) {
+          if (side === "white") {
+            ctx.beginPath();
+            ctx.arc(0, 0, geometryState.R, 0, TAU);
+            appendBlackRegionPath(geometryState.dividerPoints, geometryState.R);
+            ctx.clip("evenodd");
+          } else {
+            traceBlackRegionPath(geometryState.dividerPoints, geometryState.R);
+            ctx.clip();
+          }
+        }
+
+        function hostSpanAtY(y, R, side, dividerPoints, pad) {
+          const ySafe = clamp(y, -R + pad, R - pad);
+          const outer = Math.max(0, Math.sqrt(Math.max(0, R * R - ySafe * ySafe)) - pad);
+          const divider = clamp(dividerXFromPointsAtY(dividerPoints, ySafe, R), -outer, outer);
+
+          if (side === "white") {
+            return {
+              y: ySafe,
+              divider,
+              minX: -outer,
+              maxX: divider - pad,
+            };
+          }
+
+          return {
+            y: ySafe,
+            divider,
+            minX: divider + pad,
+            maxX: outer,
+          };
+        }
+
+        function constrainPointToHost(x, y, R, side, dividerPoints, pad) {
+          const span = hostSpanAtY(y, R, side, dividerPoints, pad);
+          if (span.maxX < span.minX) {
+            return { x: (span.minX + span.maxX) * 0.5, y: span.y };
+          }
+          return {
+            x: clamp(x, span.minX, span.maxX),
+            y: span.y,
+          };
         }
 
         function isInsideHost(x, y, R, isTop, dividerPoints) {
@@ -1284,265 +1644,735 @@
           return lo;
         }
 
-        function getDotBlobPoints(dot, R, isTop, padding, dividerPoints) {
-          const samples = 34;
-          const avails = new Array(samples);
-          let minAvail = Infinity;
-          let maxAvail = 0;
-          const baseRadius = Math.max(0.35, dot.r);
+        function getEyeRoomAt(x, y, R, isTop, padding, dividerPoints) {
+          if (!isInsideCircle(x, y, R)) return 0;
+          const white = isWhiteAt(x, y, R, dividerPoints);
+          if ((isTop && !white) || (!isTop && white)) return 0;
+          const dOuter = R - Math.hypot(x, y);
+          const dDivider = dividerNormalDistanceFromPoints(x, y, R, dividerPoints);
+          const coarseRoom = Math.max(0, Math.min(dOuter, dDivider) - padding);
 
-          for (let i = 0; i < samples; i += 1) {
-            const angle = (i / samples) * TAU;
+          const raySamples = 20;
+          let nearestEdge = Infinity;
+          for (let i = 0; i < raySamples; i += 1) {
+            const angle = (i / raySamples) * TAU;
             const dirX = Math.cos(angle);
             const dirY = Math.sin(angle);
-            const boundaryDist = rayBoundaryDistance(
+            const boundaryDist = rayBoundaryDistance(x, y, dirX, dirY, R, isTop, dividerPoints);
+            nearestEdge = Math.min(nearestEdge, boundaryDist);
+          }
+          const sampledRoom = Math.max(0, nearestEdge - padding);
+          return coarseRoom * 0.2 + sampledRoom * 0.8;
+        }
+
+        function constrainEyeToBlob(targetX, targetY, R, r, isTop, padding, dividerPoints) {
+          const safePadding = padding;
+          const safeOuterR = Math.max(0, R - (r + safePadding));
+          const steps = 260;
+          let best = null;
+
+          for (let i = 0; i <= steps; i += 1) {
+            const y = -safeOuterR + (2 * safeOuterR * i) / steps;
+            const outerX = Math.sqrt(Math.max(0, safeOuterR * safeOuterR - y * y));
+            const dividerX = dividerXFromPointsAtY(dividerPoints, y, R);
+            const wall = r + safePadding;
+            let left = -outerX;
+            let right = outerX;
+            if (isTop) {
+              right = Math.min(right, dividerX - wall);
+            } else {
+              left = Math.max(left, dividerX + wall);
+            }
+            if (right < left) continue;
+
+            const x = clamp(targetX, left, right);
+            const distSq = (x - targetX) * (x - targetX) + (y - targetY) * (y - targetY);
+            if (!best || distSq < best.distSq) {
+              best = { x, y, distSq };
+            }
+          }
+
+          if (!best) return null;
+          return { x: best.x, y: best.y };
+        }
+
+        function getEyeFeatureSafeY(y, isTop, R) {
+          const sideFocus = clamp(isTop ? state.whiteFocusY : state.blackFocusY, -1, 1);
+          const sideLift = isTop ? state.whiteLift : state.blackLift;
+          const sideLocalY = isTop ? state.whiteLocalShiftY : state.blackLocalShiftY;
+          const sideMouthH = isTop ? state.whiteMouthHeight : state.blackMouthHeight;
+          const anchorY = isTop ? EYE_LOAD_TARGETS.top.yNorm : EYE_LOAD_TARGETS.bottom.yNorm;
+          const focusDrift = sideFocus - anchorY;
+          const dynamicDrift =
+            0.008 * focusDrift + 0.004 * sideLift + 0.003 * sideLocalY + 0.001 * sideMouthH;
+
+          if (isTop) {
+            const maxY = clamp((-0.46 + dynamicDrift) * R, -0.92 * R, -0.36 * R);
+            return Math.min(y, maxY);
+          }
+
+          const minY = clamp((0.5 + dynamicDrift) * R, 0.36 * R, 0.92 * R);
+          return Math.max(y, minY);
+        }
+
+        function scanEyePlacementAtRadius(
+          targetX,
+          targetY,
+          R,
+          r,
+          isTop,
+          padding,
+          dividerPoints
+        ) {
+          const yMin = isTop ? -0.95 * R : 0.3 * R;
+          const yMax = isTop ? -0.3 * R : 0.95 * R;
+          const steps = 72;
+          let best = null;
+
+          for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            const yCandidate = yMin + (yMax - yMin) * t;
+            const ySafe = getEyeFeatureSafeY(yCandidate, isTop, R);
+            const point = constrainEyeToBlob(targetX, ySafe, R, r, isTop, padding, dividerPoints);
+            if (!point) continue;
+            const dx = point.x - targetX;
+            const dy = point.y - targetY;
+            const distSq = dx * dx + dy * dy * 1.35;
+            if (!best || distSq < best.distSq) {
+              best = { x: point.x, y: point.y, distSq };
+            }
+          }
+
+          if (!best) return null;
+          return { x: best.x, y: best.y };
+        }
+
+        function fitEyeInsideBlob(dot, R, isTop, padding, dividerPoints, sideVisibleRatio = 1) {
+          const canHide = sideVisibleRatio <= EYE_HIDE_AREA_THRESHOLD;
+          const hiddenMinEyePx = Math.max(0.08, 0.16 * getCanvasScale());
+          const visibleMinEyePx = Math.max(R * 0.028, 1.2 * getCanvasScale());
+          const minEyePx = canHide ? hiddenMinEyePx : visibleMinEyePx;
+          const targetYSafe = getEyeFeatureSafeY(dot.y, isTop, R);
+          let radius = Math.max(minEyePx, dot.r);
+          let point = constrainEyeToBlob(dot.x, targetYSafe, R, radius, isTop, padding, dividerPoints);
+
+          if (!point && !canHide) {
+            const spanSafe = hostSpanAtY(targetYSafe, R, isTop ? "white" : "black", dividerPoints, padding);
+            const spanCenterX = (spanSafe.minX + spanSafe.maxX) * 0.5;
+            point = constrainEyeToBlob(spanCenterX, targetYSafe, R, radius, isTop, padding, dividerPoints);
+          }
+
+          if (!point && !canHide) {
+            point = scanEyePlacementAtRadius(
               dot.x,
-              dot.y,
-              dirX,
-              dirY,
+              targetYSafe,
               R,
+              radius,
               isTop,
+              padding,
               dividerPoints
             );
-            const avail = Math.max(0.35, boundaryDist - padding);
-            avails[i] = avail;
-            minAvail = Math.min(minAvail, avail);
-            maxAvail = Math.max(maxAvail, avail);
           }
 
-          const avgAvail = avails.reduce((sum, value) => sum + value, 0) / samples;
-          const hostAnisotropy = clamp(
-            (maxAvail - minAvail) / Math.max(1e-6, avgAvail),
-            0,
-            1
-          );
-          const squeeze = clamp((baseRadius - minAvail) / Math.max(1e-6, baseRadius), 0, 1);
-          const globalDeform = getGlobalDeformAmount();
-          const deformGate = clamp((globalDeform - 0.02) / 0.2, 0, 1);
-          const shapeBlend = clamp(
-            (0.075 + 0.54 * hostAnisotropy + 0.31 * squeeze) * deformGate,
-            0,
-            0.82
-          );
-
-          const minRadius = Math.max(
-            0.28,
-            baseRadius * (1 - (0.48 * squeeze + 0.18 * hostAnisotropy) * deformGate)
-          );
-          const expandCap = baseRadius * (1 + 0.055 + 0.12 * shapeBlend);
-
-          let radii = avails.map((avail) => {
-            const localFactor = clamp(avail / Math.max(1e-6, avgAvail), 0.78, 1.24);
-            const profileMatch =
-              baseRadius * (1 + (localFactor - 1) * (shapeBlend * 0.64));
-            const wallFollow = baseRadius + (avail - baseRadius) * (0.14 * shapeBlend);
-            const radius = baseRadius * 0.24 + profileMatch * 0.54 + wallFollow * 0.22;
-            return clamp(radius, minRadius, Math.min(avail, expandCap));
-          });
-
-          for (let pass = 0; pass < 3; pass += 1) {
-            const smoothed = new Array(samples);
-            for (let i = 0; i < samples; i += 1) {
-              const prev = radii[(i - 1 + samples) % samples];
-              const curr = radii[i];
-              const next = radii[(i + 1) % samples];
-              smoothed[i] = clamp((prev + curr * 2 + next) * 0.25, minRadius, avails[i]);
+          for (let i = 0; i < 8 && !point; i += 1) {
+            const nextRadius = canHide ? radius * 0.84 : Math.max(minEyePx, radius * 0.95);
+            if (Math.abs(nextRadius - radius) <= 1e-4) break;
+            radius = nextRadius;
+            point = constrainEyeToBlob(dot.x, targetYSafe, R, radius, isTop, padding, dividerPoints);
+            if (!point && !canHide) {
+              point = scanEyePlacementAtRadius(
+                dot.x,
+                targetYSafe,
+                R,
+                radius,
+                isTop,
+                padding,
+                dividerPoints
+              );
             }
-            radii = smoothed;
           }
 
-          const points = new Array(samples);
-          for (let i = 0; i < samples; i += 1) {
-            const angle = (i / samples) * TAU;
-            const radius = radii[i];
-            points[i] = {
-              x: dot.x + Math.cos(angle) * radius,
-              y: dot.y + Math.sin(angle) * radius,
+          if (!point) {
+            const fallbackY = getEyeFeatureSafeY(isTop ? -0.5 * R : 0.5 * R, isTop, R);
+            const fallbackX = dividerXFromPointsAtY(dividerPoints, 0, R);
+            radius = Math.max(minEyePx, Math.min(radius, canHide ? R * 0.035 : R * 0.12));
+            point = constrainEyeToBlob(
+              fallbackX,
+              fallbackY,
+              R,
+              radius,
+              isTop,
+              padding,
+              dividerPoints
+            );
+          }
+
+          if (!point && !canHide) {
+            point = scanEyePlacementAtRadius(
+              dot.x,
+              targetYSafe,
+              R,
+              Math.max(minEyePx, radius),
+              isTop,
+              padding,
+              dividerPoints
+            );
+          }
+
+          if (!point && canHide) {
+            radius = Math.max(hiddenMinEyePx * 0.5, 0.02);
+            const fallbackY = getEyeFeatureSafeY(isTop ? -0.5 * R : 0.5 * R, isTop, R);
+            const fallbackX = dividerXFromPointsAtY(dividerPoints, fallbackY, R);
+            point = constrainEyeToBlob(
+              fallbackX,
+              fallbackY,
+              R,
+              radius,
+              isTop,
+              padding,
+              dividerPoints
+            );
+          }
+
+          if (!point) {
+            point = { x: dot.x, y: targetYSafe };
+          }
+
+          return { x: point.x, y: getEyeFeatureSafeY(point.y, isTop, R), r: radius };
+        }
+
+        function stabilizeEyeCenter(targetDot, key, R, isTop, padding, dividerPoints, sideVisibleRatio = 1) {
+          const memory = eyeMemory[key];
+          const fittedTarget = fitEyeInsideBlob(
+            targetDot,
+            R,
+            isTop,
+            padding,
+            dividerPoints,
+            sideVisibleRatio
+          );
+
+          if (!memory) {
+            eyeMemory[key] = { x: fittedTarget.x, y: fittedTarget.y, r: fittedTarget.r };
+            return fittedTarget;
+          }
+
+          const distN =
+            Math.hypot(fittedTarget.x - memory.x, fittedTarget.y - memory.y) / Math.max(1e-6, R);
+          const follow = clamp(0.18 + distN * 0.32, 0.18, 0.44);
+          const rFollow = 0.3;
+
+          memory.x += (fittedTarget.x - memory.x) * follow;
+          memory.y += (fittedTarget.y - memory.y) * follow;
+          if (typeof memory.r !== "number") {
+            memory.r = fittedTarget.r;
+          }
+          memory.r += (fittedTarget.r - memory.r) * rFollow;
+
+          const fittedMemory = fitEyeInsideBlob(
+            { x: memory.x, y: memory.y, r: memory.r },
+            R,
+            isTop,
+            padding,
+            dividerPoints,
+            sideVisibleRatio
+          );
+          memory.x = fittedMemory.x;
+          memory.y = fittedMemory.y;
+          memory.r = fittedMemory.r;
+
+          return { x: memory.x, y: memory.y, r: memory.r };
+        }
+
+        function findEyeAuto(R, region, padding, dividerPoints) {
+          const isTop = region === "top";
+          const key = isTop ? "top" : "bottom";
+          const side = isTop ? "white" : "black";
+          const anchor = EYE_LOAD_TARGETS[key];
+          const sideState = getSideState(side);
+          const dominance = clamp(state.whitePush - state.blackPush, -1, 1);
+
+          // Eye is a stronger control anchor: it should follow deformation clearly.
+          const baseY = anchor.yNorm * R;
+          const outwardBiasY = (isTop ? -1 : 1) * Math.abs(dominance) * 0.15 * R;
+          const liftBiasY = sideState.lift * 0.11 * R;
+          const focusBiasY = (clamp(sideState.focusY, -1, 1) - anchor.yNorm) * 0.22 * R;
+          const localYBias = sideState.localShiftY * 0.12 * R;
+          const preferredYRaw = clamp(
+            baseY + outwardBiasY + liftBiasY + focusBiasY + localYBias,
+            isTop ? -0.95 * R : 0.32 * R,
+            isTop ? -0.32 * R : 0.95 * R
+          );
+          const preferredY = getEyeFeatureSafeY(preferredYRaw, isTop, R);
+
+          const span = hostSpanAtY(preferredY, R, side, dividerPoints, padding);
+          const outerAtY = isTop ? span.minX : span.maxX;
+          const dividerAtY = span.divider;
+
+          // Preserve relative depth from divider->outer rim using neutral layout as baseline.
+          const neutralOuterNorm = Math.sqrt(Math.max(1e-6, 1 - anchor.yNorm * anchor.yNorm));
+          const neutralDividerNorm = sampleProfile(dividerProfile, anchor.yNorm);
+          let depth;
+          if (isTop) {
+            depth =
+              (anchor.xNorm - neutralDividerNorm) /
+              Math.max(1e-6, -neutralOuterNorm - neutralDividerNorm);
+          } else {
+            depth =
+              (anchor.xNorm - neutralDividerNorm) /
+              Math.max(1e-6, neutralOuterNorm - neutralDividerNorm);
+          }
+          depth = clamp(depth, 0.14, 0.9);
+
+          const localBias = sideState.localShiftX * 0.035;
+          const depthWithBias = clamp(depth + (isTop ? localBias : -localBias), 0.14, 0.9);
+          const xFromDepth = dividerAtY + (outerAtY - dividerAtY) * depthWithBias;
+          const preferredX = clamp(xFromDepth, span.minX, span.maxX);
+
+          const baseRadius = R * EYE_ANCHORS[key].radiusScale;
+          const room = getEyeRoomAt(preferredX, preferredY, R, isTop, padding, dividerPoints);
+          const maxAllowed = Math.min(room * 0.92, R * 0.22);
+          const minAllowed = Math.min(R * 0.03, maxAllowed);
+
+          return {
+            x: preferredX,
+            y: preferredY,
+            r: maxAllowed > 0 ? clamp(baseRadius, minAllowed, maxAllowed) : Math.max(0.35, baseRadius),
+          };
+        }
+
+        function getSideState(side) {
+          if (side === "white") {
+            return {
+              push: (state.whitePush - 0.5) * 2,
+              lift: state.whiteLift,
+              localShiftX: state.whiteLocalShiftX,
+              localShiftY: state.whiteLocalShiftY,
+              focusY: state.whiteFocusY,
             };
           }
-          let minRadiusFinal = Infinity;
-          let maxRadiusFinal = 0;
-          for (let i = 0; i < samples; i += 1) {
-            minRadiusFinal = Math.min(minRadiusFinal, radii[i]);
-            maxRadiusFinal = Math.max(maxRadiusFinal, radii[i]);
-          }
-          const anisotropy = clamp(
-            (maxRadiusFinal - minRadiusFinal) / Math.max(1e-6, baseRadius),
-            0,
-            1
-          );
-          return { points, anisotropy, squeeze, deformGate };
+          return {
+            push: (state.blackPush - 0.5) * 2,
+            lift: state.blackLift,
+            localShiftX: state.blackLocalShiftX,
+            localShiftY: state.blackLocalShiftY,
+            focusY: state.blackFocusY,
+          };
         }
 
-        function drawDeformedDot(dot, R, isTop, padding, dividerPoints) {
-          if (dot.r <= 0) return;
-          if (!isInsideHost(dot.x, dot.y, R, isTop, dividerPoints)) {
-            return;
-          }
-          const profile = getDotBlobPoints(dot, R, isTop, padding, dividerPoints);
-          if (
-            !profile ||
-            profile.points.length < 3 ||
-            (profile.deformGate < 0.03 ||
-              (profile.squeeze < 0.008 && profile.anisotropy < 0.025) ||
-              profile.anisotropy < 0.006 ||
-              profile.squeeze > 0.62 ||
-              profile.anisotropy > 0.62)
-          ) {
-            drawCircle(dot.x, dot.y, dot.r);
-            return;
+        function getFeatureWarpOffset(u, v, side, R) {
+          const s = getSideState(side);
+          const focus = gaussian(v, clamp(s.focusY, -1, 1), 0.35);
+          const eye = gaussian(v, -0.52, 0.16);
+          const nose = gaussian(v, -0.03, 0.16);
+          const mouth = gaussian(v, 0.28, 0.2);
+          const center = gaussian(v, 0.02, 0.18);
+          const edge = clamp(1 - u, 0, 1);
+
+          const dominance = clamp(state.whitePush - state.blackPush, -1, 1);
+          const sideDominance = side === "white" ? dominance : -dominance;
+
+          let dx =
+            (sideDominance * (0.028 + edge * 0.02) +
+              s.localShiftX * focus * 0.08 +
+              s.push * center * 0.04 +
+              s.lift * nose * 0.018) *
+            R;
+
+          let dy =
+            (s.lift * (0.07 + edge * 0.05) +
+              s.localShiftX * center * 0.02 +
+              s.localShiftY * focus * 0.07 +
+              s.push * (mouth * 0.018 - eye * 0.014)) *
+            R;
+
+          const maxMag = 0.15 * R;
+          const mag = Math.hypot(dx, dy);
+          if (mag > maxMag && mag > 1e-6) {
+            const scale = maxMag / mag;
+            dx *= scale;
+            dy *= scale;
           }
 
-          const points = profile.points;
-          const n = points.length;
-          const startMid = {
-            x: (points[n - 1].x + points[0].x) * 0.5,
-            y: (points[n - 1].y + points[0].y) * 0.5,
-          };
+          return { x: dx, y: dy };
+        }
+
+        function mapUVPoint(point, side, geometryState) {
+          const u = clamp(point.u, 0.001, 0.999);
+          const v = clamp(point.v, -0.98, 0.98);
+
+          const y0 = v * geometryState.R;
+          const span = hostSpanAtY(
+            y0,
+            geometryState.R,
+            side,
+            geometryState.dividerPoints,
+            geometryState.featurePad
+          );
+
+          const outer = side === "white" ? span.minX : span.maxX;
+          const x0 = span.divider + (outer - span.divider) * u;
+
+          const warp = getFeatureWarpOffset(u, v, side, geometryState.R);
+          const x = x0 + warp.x;
+          const y = span.y + warp.y;
+
+          return constrainPointToHost(
+            x,
+            y,
+            geometryState.R,
+            side,
+            geometryState.dividerPoints,
+            geometryState.featurePad
+          );
+        }
+
+        function sampleCubicUV(p0, p1, p2, p3, steps) {
+          const points = [];
+          for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            const inv = 1 - t;
+            points.push({
+              u:
+                inv * inv * inv * p0.u +
+                3 * inv * inv * t * p1.u +
+                3 * inv * t * t * p2.u +
+                t * t * t * p3.u,
+              v:
+                inv * inv * inv * p0.v +
+                3 * inv * inv * t * p1.v +
+                3 * inv * t * t * p2.v +
+                t * t * t * p3.v,
+            });
+          }
+          return points;
+        }
+
+        function sampleEllipseUV(cu, cv, ru, rv, steps) {
+          const points = [];
+          for (let i = 0; i < steps; i += 1) {
+            const t = (i / steps) * TAU;
+            points.push({
+              u: cu + Math.cos(t) * ru,
+              v: cv + Math.sin(t) * rv,
+            });
+          }
+          return points;
+        }
+
+        function sampleCubicNorm(p0, p1, p2, p3, steps) {
+          const points = [];
+          for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            const inv = 1 - t;
+            points.push({
+              x:
+                inv * inv * inv * p0.x +
+                3 * inv * inv * t * p1.x +
+                3 * inv * t * t * p2.x +
+                t * t * t * p3.x,
+              y:
+                inv * inv * inv * p0.y +
+                3 * inv * inv * t * p1.y +
+                3 * inv * t * t * p2.y +
+                t * t * t * p3.y,
+            });
+          }
+          return points;
+        }
+
+        function sampleEllipseNorm(cx, cy, rx, ry, steps) {
+          const points = [];
+          for (let i = 0; i < steps; i += 1) {
+            const t = (i / steps) * TAU;
+            points.push({
+              x: cx + Math.cos(t) * rx,
+              y: cy + Math.sin(t) * ry,
+            });
+          }
+          return points;
+        }
+
+        function smoothPoints(points, passes, closed) {
+          if (!points || points.length < 3 || passes <= 0) return points;
+          let current = points.map((p) => ({ x: p.x, y: p.y }));
+          const n = current.length;
+
+          for (let pass = 0; pass < passes; pass += 1) {
+            const next = new Array(n);
+            for (let i = 0; i < n; i += 1) {
+              if (!closed && (i === 0 || i === n - 1)) {
+                next[i] = { x: current[i].x, y: current[i].y };
+                continue;
+              }
+              const prev = current[(i - 1 + n) % n];
+              const curr = current[i];
+              const nxt = current[(i + 1) % n];
+              next[i] = {
+                x: (prev.x + 2 * curr.x + nxt.x) * 0.25,
+                y: (prev.y + 2 * curr.y + nxt.y) * 0.25,
+              };
+            }
+            current = next;
+          }
+
+          return current;
+        }
+
+        function traceSmoothPolyline(points, closed) {
+          if (!points || points.length < 2) return;
+
+          if (closed) {
+            const n = points.length;
+            const start = {
+              x: (points[n - 1].x + points[0].x) * 0.5,
+              y: (points[n - 1].y + points[0].y) * 0.5,
+            };
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            for (let i = 0; i < n; i += 1) {
+              const curr = points[i];
+              const next = points[(i + 1) % n];
+              const mid = { x: (curr.x + next.x) * 0.5, y: (curr.y + next.y) * 0.5 };
+              ctx.quadraticCurveTo(curr.x, curr.y, mid.x, mid.y);
+            }
+            ctx.closePath();
+            return;
+          }
 
           ctx.beginPath();
-          ctx.moveTo(startMid.x, startMid.y);
-          for (let i = 0; i < n; i += 1) {
-            const curr = points[i];
-            const next = points[(i + 1) % n];
-            const mid = { x: (curr.x + next.x) * 0.5, y: (curr.y + next.y) * 0.5 };
-            ctx.quadraticCurveTo(curr.x, curr.y, mid.x, mid.y);
-          }
-          ctx.closePath();
-          ctx.fill();
-        }
-
-        function appendSmoothDivider(points) {
-          if (points.length < 2) return;
           ctx.moveTo(points[0].x, points[0].y);
           for (let i = 1; i < points.length - 1; i += 1) {
             const curr = points[i];
             const next = points[i + 1];
-            const midX = (curr.x + next.x) * 0.5;
-            const midY = (curr.y + next.y) * 0.5;
-            ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+            const mid = { x: (curr.x + next.x) * 0.5, y: (curr.y + next.y) * 0.5 };
+            ctx.quadraticCurveTo(curr.x, curr.y, mid.x, mid.y);
           }
           const last = points[points.length - 1];
           ctx.lineTo(last.x, last.y);
         }
 
-        function traceSmoothDivider(points) {
-          if (points.length < 2) return;
-          ctx.beginPath();
-          appendSmoothDivider(points);
+        function getEyeBridgeRotation(key, eye, geometryState) {
+          const R = geometryState.R;
+          const isTop = key === "top";
+          const probeY = clamp(
+            eye.y + (isTop ? 0.24 : -0.24) * R,
+            -0.36 * R,
+            0.36 * R
+          );
+          const slope = dividerSlopeFromPointsAtY(geometryState.dividerPoints, probeY, R);
+          const bridgeAngle = Math.atan2(1, slope);
+          // Eye paths are authored mostly vertical; rotate by delta from vertical.
+          return clamp(bridgeAngle - Math.PI * 0.5, -0.75, 0.75);
         }
 
-        function appendBlackRegionPath(points, R) {
-          appendSmoothDivider(points);
-          const arcSteps = 260;
-          for (let i = 0; i <= arcSteps; i += 1) {
-            const t = i / arcSteps;
-            const theta = Math.PI * 0.5 - Math.PI * t;
-            ctx.lineTo(R * Math.cos(theta), R * Math.sin(theta));
-          }
-          ctx.closePath();
-        }
+        function drawSourceSvgFeatures(geometryState, lineWidth) {
+          if (!FACE_SOURCE_PATHS) return;
 
-        function traceBlackRegionPath(points, R) {
-          ctx.beginPath();
-          appendBlackRegionPath(points, R);
-        }
+          const R = geometryState.R;
+          const symbolScale = (2 * R) / FACE_SVG_VIEWBOX;
 
-        function strokeDotOutline(dot, R, isTop, padding, dividerPoints) {
-          if (!isInsideHost(dot.x, dot.y, R, isTop, dividerPoints)) return;
-          const profile = getDotBlobPoints(dot, R, isTop, padding, dividerPoints);
-          if (
-            !profile ||
-            profile.points.length < 3 ||
-            (profile.deformGate < 0.03 ||
-              (profile.squeeze < 0.008 && profile.anisotropy < 0.025) ||
-              profile.anisotropy < 0.006 ||
-              profile.squeeze > 0.62 ||
-              profile.anisotropy > 0.62)
-          ) {
-            ctx.beginPath();
-            ctx.arc(dot.x, dot.y, dot.r, 0, TAU);
-            ctx.stroke();
-            return;
-          }
+          const drawEyePathAtDot = (key, path, hostSide, fillColor) => {
+            const dot = key === "top" ? geometryState.topEye : geometryState.bottomEye;
+            if (!dot) return;
 
-          const points = profile.points;
-          const n = points.length;
-          const startMid = {
-            x: (points[n - 1].x + points[0].x) * 0.5,
-            y: (points[n - 1].y + points[0].y) * 0.5,
+            const anchor = EYE_ANCHORS[key];
+            const baseX = anchor.xNorm * R;
+            const baseY = anchor.yNorm * R;
+            const baseRadius = Math.max(R * anchor.radiusScale, 1.8 * getCanvasScale());
+            const eyeScale = clamp(dot.r / Math.max(1e-6, baseRadius), 0.02, 1.3);
+            const sideVisibleRatio =
+              key === "top" ? geometryState.topVisibleRatio : geometryState.bottomVisibleRatio;
+            if (sideVisibleRatio <= EYE_HIDE_AREA_THRESHOLD && dot.r <= Math.max(0.03, 0.04 * getCanvasScale())) {
+              return;
+            }
+
+            const anchorSvgX = ((anchor.xNorm + 1) * 0.5) * FACE_SVG_VIEWBOX;
+            const anchorSvgY = ((anchor.yNorm + 1) * 0.5) * FACE_SVG_VIEWBOX;
+            const offsetX = dot.x - baseX;
+            const offsetY = dot.y - baseY;
+            const eyeRotation = getEyeBridgeRotation(key, dot, geometryState);
+
+            ctx.save();
+            clipHostRegion(hostSide, geometryState);
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(symbolScale, symbolScale);
+            ctx.translate(-FACE_SVG_VIEWBOX * 0.5, -FACE_SVG_VIEWBOX * 0.5);
+            ctx.translate(anchorSvgX, anchorSvgY);
+            ctx.rotate(eyeRotation);
+            ctx.scale(eyeScale, eyeScale);
+            ctx.translate(-anchorSvgX, -anchorSvgY);
+
+            ctx.fillStyle = fillColor;
+            ctx.fill(path);
+            if (!LOOK_TEST.enabled || LOOK_TEST.drawEyeStroke) {
+              ctx.strokeStyle = COLORS.line;
+              ctx.lineWidth = lineWidth / Math.max(1e-6, symbolScale * eyeScale);
+              ctx.lineJoin = "round";
+              ctx.lineCap = "round";
+              ctx.stroke(path);
+            }
+            ctx.restore();
           };
-          ctx.beginPath();
-          ctx.moveTo(startMid.x, startMid.y);
-          for (let i = 0; i < n; i += 1) {
-            const curr = points[i];
-            const next = points[(i + 1) % n];
-            const mid = { x: (curr.x + next.x) * 0.5, y: (curr.y + next.y) * 0.5 };
-            ctx.quadraticCurveTo(curr.x, curr.y, mid.x, mid.y);
-          }
-          ctx.closePath();
-          ctx.stroke();
+
+          drawEyePathAtDot("top", FACE_SOURCE_PATHS.eyeLeft, "white", COLORS.black);
+          drawEyePathAtDot("bottom", FACE_SOURCE_PATHS.shared, "black", COLORS.white);
         }
 
-        function drawSelectionRing(mode, geometryState) {
-          if (!mode) return;
-          const ringWidth = SELECTION_RING_WIDTH_CSS * getCanvasScale();
-          ctx.save();
-          ctx.translate(canvas.width / 2, canvas.height / 2);
-          ctx.lineWidth = ringWidth * 1.15;
-          ctx.lineJoin = "round";
-          ctx.lineCap = "round";
-          ctx.strokeStyle = "rgba(255, 38, 38, 0.95)";
+        function geometry() {
+          const R = getRadius();
+          const dividerPoints = buildDivider(R);
+          const featurePad = FEATURE_PADDING_CSS * getCanvasScale();
+          const topVisibleRatio = getPositiveRatioFromGeometry({ R, dividerPoints });
+          const bottomVisibleRatio = 1 - topVisibleRatio;
 
-          if (mode === "topDotMove") {
-            strokeDotOutline(
-              geometryState.topDot,
-              geometryState.R,
+          const topAuto = findEyeAuto(
+            R,
+            "top",
+            featurePad,
+            dividerPoints
+          );
+          const bottomAuto = findEyeAuto(
+            R,
+            "bottom",
+            featurePad,
+            dividerPoints
+          );
+
+          const topPlaced = constrainEyeToBlob(
+            topAuto.x,
+            topAuto.y,
+            R,
+            topAuto.r,
+            true,
+            featurePad,
+            dividerPoints
+          );
+          const bottomPlaced = constrainEyeToBlob(
+            bottomAuto.x,
+            bottomAuto.y,
+            R,
+            bottomAuto.r,
+            false,
+            featurePad,
+            dividerPoints
+          );
+
+          let topTarget = topPlaced
+            ? { x: topPlaced.x, y: topPlaced.y, r: topAuto.r }
+            : { x: topAuto.x, y: topAuto.y, r: topAuto.r };
+          let bottomTarget = bottomPlaced
+            ? { x: bottomPlaced.x, y: bottomPlaced.y, r: bottomAuto.r }
+            : { x: bottomAuto.x, y: bottomAuto.y, r: bottomAuto.r };
+
+          // Load-layout correction only: blend eyes to desired neutral rest positions.
+          const deformN = getGlobalDeformAmount();
+          if (deformN < EYE_LOAD_BLEND_DEFORM) {
+            const neutralT = clamp(1 - deformN / EYE_LOAD_BLEND_DEFORM, 0, 1);
+            const topNeutral = constrainEyeToBlob(
+              EYE_LOAD_TARGETS.top.xNorm * R,
+              EYE_LOAD_TARGETS.top.yNorm * R,
+              R,
+              topTarget.r,
               true,
-              geometryState.padding,
-              geometryState.dividerPoints
+              featurePad,
+              dividerPoints
             );
-            ctx.restore();
-            return;
-          }
-          if (mode === "bottomDotMove") {
-            strokeDotOutline(
-              geometryState.bottomDot,
-              geometryState.R,
+            const bottomNeutral = constrainEyeToBlob(
+              EYE_LOAD_TARGETS.bottom.xNorm * R,
+              EYE_LOAD_TARGETS.bottom.yNorm * R,
+              R,
+              bottomTarget.r,
               false,
-              geometryState.padding,
-              geometryState.dividerPoints
+              featurePad,
+              dividerPoints
             );
-            ctx.restore();
-            return;
+            if (topNeutral) {
+              topTarget.x = topTarget.x * (1 - neutralT) + topNeutral.x * neutralT;
+              topTarget.y = topTarget.y * (1 - neutralT) + topNeutral.y * neutralT;
+            }
+            if (bottomNeutral) {
+              bottomTarget.x = bottomTarget.x * (1 - neutralT) + bottomNeutral.x * neutralT;
+              bottomTarget.y = bottomTarget.y * (1 - neutralT) + bottomNeutral.y * neutralT;
+            }
           }
 
-          const highlightWhite = mode === "white";
-          if (!highlightWhite && mode !== "black") {
-            ctx.restore();
-            return;
-          }
+          const topRoom = getEyeRoomAt(topTarget.x, topTarget.y, R, true, featurePad, dividerPoints);
+          const bottomRoom = getEyeRoomAt(
+            bottomTarget.x,
+            bottomTarget.y,
+            R,
+            false,
+            featurePad,
+            dividerPoints
+          );
 
-          ctx.save();
-          if (highlightWhite) {
-            ctx.lineWidth = ringWidth * 2.1;
-            ctx.beginPath();
-            ctx.arc(0, 0, geometryState.R, 0, TAU);
-            appendBlackRegionPath(geometryState.dividerPoints, geometryState.R);
-            ctx.clip("evenodd");
+          const topBaseR = R * EYE_ANCHORS.top.radiusScale;
+          const bottomBaseR = R * EYE_ANCHORS.bottom.radiusScale;
+          if (topVisibleRatio > EYE_HIDE_AREA_THRESHOLD) {
+            topTarget.r = clamp(topBaseR, R * 0.03, R * 0.26);
           } else {
-            ctx.lineWidth = ringWidth * 2.1;
-            traceBlackRegionPath(geometryState.dividerPoints, geometryState.R);
-            ctx.clip();
+            const topMax = Math.min(topRoom * 0.94, R * 0.26);
+            topTarget.r =
+              topMax > 0
+                ? clamp(topBaseR, Math.min(R * 0.0018, topMax), topMax)
+                : Math.max(0.06, R * 0.0014);
+          }
+          if (bottomVisibleRatio > EYE_HIDE_AREA_THRESHOLD) {
+            bottomTarget.r = clamp(bottomBaseR, R * 0.03, R * 0.26);
+          } else {
+            const bottomMax = Math.min(bottomRoom * 0.94, R * 0.26);
+            bottomTarget.r =
+              bottomMax > 0
+                ? clamp(bottomBaseR, Math.min(R * 0.0018, bottomMax), bottomMax)
+                : Math.max(0.06, R * 0.0014);
           }
 
-          ctx.beginPath();
-          ctx.arc(0, 0, geometryState.R, 0, TAU);
-          ctx.stroke();
-          traceSmoothDivider(geometryState.dividerPoints);
-          ctx.stroke();
-          ctx.restore();
-          ctx.restore();
+          topTarget = fitEyeInsideBlob(
+            topTarget,
+            R,
+            true,
+            featurePad,
+            dividerPoints,
+            topVisibleRatio
+          );
+          bottomTarget = fitEyeInsideBlob(
+            bottomTarget,
+            R,
+            false,
+            featurePad,
+            dividerPoints,
+            bottomVisibleRatio
+          );
+
+          const topEye = stabilizeEyeCenter(
+            topTarget,
+            "top",
+            R,
+            true,
+            featurePad,
+            dividerPoints,
+            topVisibleRatio
+          );
+          const bottomEye = stabilizeEyeCenter(
+            bottomTarget,
+            "bottom",
+            R,
+            false,
+            featurePad,
+            dividerPoints,
+            bottomVisibleRatio
+          );
+
+          return {
+            R,
+            dividerPoints,
+            featurePad,
+            topEye,
+            bottomEye,
+            topVisibleRatio,
+            bottomVisibleRatio,
+          };
         }
 
         function draw() {
@@ -1550,15 +2380,16 @@
           const stillEasing = easeStateTowardTarget();
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          const w = canvas.width;
-          const h = canvas.height;
-          const cx = w / 2;
-          const cy = h / 2;
+          const cx = canvas.width * 0.5;
+          const cy = canvas.height * 0.5;
           const g = geometry();
-          const lineWidth = Math.max(2, g.R * 0.02);
+          updateBalanceMeter(g);
+
+          const lineWidth = Math.max(1.1, OUTLINE_WIDTH_CSS * getCanvasScale() * 0.75) + 2 * getCanvasScale();
+          const outerLineWidth = lineWidth * OUTER_RING_WEIGHT;
 
           ctx.save();
-          ctx.shadowColor = "rgba(0,0,0,0.28)";
+          ctx.shadowColor = "rgba(0,0,0,0.26)";
           ctx.shadowBlur = Math.max(10, g.R * 0.08);
           ctx.shadowOffsetY = Math.max(6, g.R * 0.03);
           ctx.beginPath();
@@ -1569,6 +2400,7 @@
 
           ctx.save();
           ctx.translate(cx, cy);
+          ctx.rotate(viewRotation.current);
           ctx.beginPath();
           ctx.arc(0, 0, g.R, 0, TAU);
           ctx.clip();
@@ -1582,48 +2414,38 @@
           traceBlackRegionPath(g.dividerPoints, g.R);
           ctx.fill();
 
-          ctx.fillStyle = COLORS.black;
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(0, 0, g.R, 0, TAU);
-          appendBlackRegionPath(g.dividerPoints, g.R);
-          ctx.clip("evenodd");
-          drawDeformedDot(g.topDot, g.R, true, g.padding, g.dividerPoints);
-          ctx.restore();
-
-          ctx.fillStyle = COLORS.white;
-          ctx.save();
-          traceBlackRegionPath(g.dividerPoints, g.R);
-          ctx.clip();
-          drawDeformedDot(g.bottomDot, g.R, false, g.padding, g.dividerPoints);
-          ctx.restore();
-
-          ctx.restore();
-
-          ctx.beginPath();
-          ctx.arc(cx, cy, g.R, 0, TAU);
-          ctx.lineWidth = lineWidth;
-          ctx.strokeStyle = "rgba(0,0,0,0.75)";
-          ctx.stroke();
-
-          if (drag.active) {
-            drawSelectionRing(drag.mode, g);
+          if (!LOOK_TEST.enabled || LOOK_TEST.drawDividerStroke) {
+            ctx.strokeStyle = COLORS.line;
+            ctx.lineWidth = lineWidth;
+            traceSmoothDivider(g.dividerPoints);
+            ctx.stroke();
           }
 
-          if (stillEasing) {
-            requestDraw();
+          drawSourceSvgFeatures(g, lineWidth);
+
+          ctx.restore();
+
+          if (!LOOK_TEST.enabled || LOOK_TEST.drawOuterStroke) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, g.R, 0, TAU);
+            ctx.lineWidth = outerLineWidth;
+            ctx.strokeStyle = COLORS.line;
+            ctx.stroke();
           }
+
+          if (stillEasing) requestDraw();
         }
 
         function buildSnapshotCanvas(size = 1800) {
           draw();
           renderDateStamps();
+
           const snapshot = document.createElement("canvas");
           snapshot.width = size;
           snapshot.height = size;
           const snapshotCtx = snapshot.getContext("2d", { alpha: false });
-          const bgColor = rootStyles.getPropertyValue("--bg").trim() || "#a87444";
-          snapshotCtx.fillStyle = bgColor;
+
+          snapshotCtx.fillStyle = COLORS.bg;
           snapshotCtx.fillRect(0, 0, size, size);
 
           const symbolFrame = size * 0.8;
@@ -1636,10 +2458,11 @@
           const edgePadX = size * 0.055;
           const topPadY = size * 0.045;
           const bottomAnchorY = size * 0.965;
+
           snapshotCtx.font = `700 ${fontSize}px ${CONDENSED_FONT_STACK}`;
           snapshotCtx.textBaseline = "top";
           snapshotCtx.textAlign = "right";
-          snapshotCtx.fillStyle = "rgba(246, 241, 230, 0.96)";
+          snapshotCtx.fillStyle = "#ffffff";
           snapshotCtx.fillText(stamp, size - edgePadX, topPadY);
 
           snapshotCtx.save();
@@ -1648,7 +2471,7 @@
           snapshotCtx.rotate(Math.PI);
           snapshotCtx.textBaseline = "top";
           snapshotCtx.textAlign = "left";
-          snapshotCtx.fillStyle = "rgba(17, 17, 17, 0.94)";
+          snapshotCtx.fillStyle = "#000000";
           snapshotCtx.fillText(stamp, 0, 0);
           snapshotCtx.restore();
 
@@ -1670,6 +2493,7 @@
                 return;
               }
             }
+
             canvasNode.toBlob((blob) => {
               if (!blob) {
                 reject(new Error("Could not create image blob"));
@@ -1692,8 +2516,7 @@
         }
 
         async function shareSnapshot(blob, fileName) {
-          if (!("share" in navigator)) return false;
-          if (typeof File !== "function") return false;
+          if (!("share" in navigator) || typeof File !== "function") return false;
           const file = new File([blob], fileName, { type: "image/png" });
           if ("canShare" in navigator && !navigator.canShare({ files: [file] })) return false;
           await navigator.share({
@@ -1719,8 +2542,8 @@
 
           try {
             const now = new Date();
-            const fileStamp = formatFilenameStamp(now);
-            const fileName = `Mood - ${fileStamp.date} - ${fileStamp.time}.png`;
+            const stamp = formatFilenameStamp(now);
+            const fileName = `Mood - ${stamp.date} - ${stamp.time}.png`;
             const snapshotCanvas = buildSnapshotCanvas();
             const blob = await canvasToBlob(snapshotCanvas);
 
@@ -1747,7 +2570,7 @@
 
             downloadBlob(blob, fileName);
             setSaveStatus("Saved mood snapshot");
-          } catch (error) {
+          } catch (_) {
             setSaveStatus("Couldn’t save snapshot");
           } finally {
             saveShotButton.disabled = false;
@@ -1766,9 +2589,16 @@
 
         canvas.addEventListener("pointerdown", (e) => {
           resizeCanvasToDisplaySize();
-          const local = getLocalPoint(e);
+          let local = getLocalPoint(e);
           const g = geometry();
           if (!isInsideCircle(local.x, local.y, g.R)) return;
+          const side = isWhiteAt(local.x, local.y, g.R, g.dividerPoints) ? "white" : "black";
+          const desiredRotation = ORIENTATION_ANGLE[side];
+          if (Math.abs(desiredRotation - viewRotation.current) > 1e-6) {
+            viewRotation.current = desiredRotation;
+            viewRotation.target = desiredRotation;
+            local = getLocalPoint(e);
+          }
 
           drag.active = true;
           drag.pointerId = e.pointerId;
@@ -1780,53 +2610,59 @@
           drag.startBlackLift = stateTarget.blackLift;
           drag.startWhiteLocalShiftX = stateTarget.whiteLocalShiftX;
           drag.startBlackLocalShiftX = stateTarget.blackLocalShiftX;
+          drag.startWhiteLocalShiftY = stateTarget.whiteLocalShiftY;
+          drag.startBlackLocalShiftY = stateTarget.blackLocalShiftY;
+          drag.startWhiteMouthWidth = stateTarget.whiteMouthWidth;
+          drag.startBlackMouthWidth = stateTarget.blackMouthWidth;
+          drag.startWhiteMouthHeight = stateTarget.whiteMouthHeight;
+          drag.startBlackMouthHeight = stateTarget.blackMouthHeight;
           drag.startWhiteFocusY = stateTarget.whiteFocusY;
           drag.startBlackFocusY = stateTarget.blackFocusY;
-          drag.grabYNorm = clamp(local.y / g.R, -1, 1);
+          drag.mode = side;
+          drag.eyeGrab = null;
+
+          const eyeHitPad = EYE_DRAG_HIT_PAD_CSS * getCanvasScale();
+          if (side === "white" && g.topEye) {
+            const topDist = Math.hypot(local.x - g.topEye.x, local.y - g.topEye.y);
+            if (topDist <= g.topEye.r + eyeHitPad) {
+              drag.eyeGrab = "top";
+            }
+          } else if (side === "black" && g.bottomEye) {
+            const bottomDist = Math.hypot(local.x - g.bottomEye.x, local.y - g.bottomEye.y);
+            if (bottomDist <= g.bottomEye.r + eyeHitPad) {
+              drag.eyeGrab = "bottom";
+            }
+          }
+
+          drag.grabYNorm = clamp(
+            drag.eyeGrab === "top"
+              ? g.topEye.y / g.R
+              : drag.eyeGrab === "bottom"
+                ? g.bottomEye.y / g.R
+                : local.y / g.R,
+            -1,
+            1
+          );
+          const dividerDistNorm =
+            dividerNormalDistanceFromPoints(local.x, local.y, g.R, g.dividerPoints) /
+            Math.max(1e-6, g.R);
+          const dividerAffinity = 1 - smoothstep(0.14, 0.34, dividerDistNorm);
+          drag.noseGrab = clamp(getNoseZoneAffinity(drag.grabYNorm) * dividerAffinity, 0, 1);
+          drag.mouthGrab = clamp(getMouthZoneAffinity(drag.grabYNorm) * (0.35 + 0.65 * dividerAffinity), 0, 1);
+          if (drag.eyeGrab) {
+            // Eye drag should move the full facial mass around the eye anchor.
+            drag.noseGrab = 1;
+            drag.mouthGrab = 1;
+          }
+
           const influence = getGrabInfluence(drag.grabYNorm);
           drag.topInfluence = influence.top;
           drag.bottomInfluence = influence.bottom;
-          drag.activeDotCenter = { x: 0, y: 0 };
-          drag.activeDotOffset = { x: 0, y: 0 };
-
-          const hitPad = DOT_DRAG_HIT_PAD_CSS * getCanvasScale();
-          const topDist = Math.hypot(local.x - g.topDot.x, local.y - g.topDot.y);
-          const bottomDist = Math.hypot(local.x - g.bottomDot.x, local.y - g.bottomDot.y);
-          const topHitR = g.topDot.r + hitPad;
-          const bottomHitR = g.bottomDot.r + hitPad;
-          const insideTopDot = topDist <= topHitR;
-          const insideBottomDot = bottomDist <= bottomHitR;
-
-          if (insideTopDot || insideBottomDot) {
-            let selected = "top";
-            if (!insideTopDot) {
-              selected = "bottom";
-            } else if (insideBottomDot) {
-              const topNorm = topDist / Math.max(1e-6, topHitR);
-              const bottomNorm = bottomDist / Math.max(1e-6, bottomHitR);
-              selected = topNorm <= bottomNorm ? "top" : "bottom";
-            }
-            drag.mode = selected === "top" ? "topDotMove" : "bottomDotMove";
-            drag.activeDotCenter =
-              selected === "top" ? { x: g.topDot.x, y: g.topDot.y } : { x: g.bottomDot.x, y: g.bottomDot.y };
-            drag.activeDotOffset = {
-              x: local.x - drag.activeDotCenter.x,
-              y: local.y - drag.activeDotCenter.y,
-            };
-            setDotUserPosition(
-              selected,
-              drag.activeDotCenter.x,
-              drag.activeDotCenter.y,
-              g.R
-            );
-          } else {
-            drag.mode = isWhiteAt(local.x, local.y, g.R, g.dividerPoints) ? "white" : "black";
-          }
 
           if (drag.mode === "white") {
             stateTarget.whiteFocusY = drag.grabYNorm;
             drag.startWhiteFocusY = stateTarget.whiteFocusY;
-          } else if (drag.mode === "black") {
+          } else {
             stateTarget.blackFocusY = drag.grabYNorm;
             drag.startBlackFocusY = stateTarget.blackFocusY;
           }
@@ -1838,81 +2674,252 @@
         canvas.addEventListener("pointermove", (e) => {
           if (!drag.active || e.pointerId !== drag.pointerId) return;
           resizeCanvasToDisplaySize();
+
           const local = getLocalPoint(e);
           const R = getRadius();
           const dx = local.x - drag.start.x;
           const dy = local.y - drag.start.y;
 
-          if (drag.mode === "white" || drag.mode === "black") {
-            const localHorizontal = dx / (0.82 * R);
-            const localVertical = dy / (0.58 * R);
-            const globalHorizontal = dx / (1.46 * R);
-            const globalVertical = dy / (0.64 * R);
-            const verticalRatioDrive = globalVertical * 0.2;
+          const localHorizontal = dx / (0.82 * R);
+          const localVertical = dy / (0.58 * R);
+          const globalHorizontal = dx / (1.46 * R);
+          const globalVertical = dy / (0.64 * R);
+          const verticalRatioDrive = globalVertical * 0.2;
+          const pointerYNorm = clamp(local.y / R, -1, 1);
+          const noseGrab = drag.noseGrab;
+          const mouthGrab = drag.mouthGrab;
+          const featureGrab = Math.max(noseGrab, mouthGrab * 0.92);
+          const sideLocalHorizontal = drag.mode === "white" ? localHorizontal : -localHorizontal;
+          const sideGlobalHorizontal = drag.mode === "white" ? globalHorizontal : -globalHorizontal;
+          const isEyeDrag = drag.eyeGrab != null;
+
+          if (isEyeDrag) {
+            const eyeFocusFollow = clamp(0.78 + 0.26 * featureGrab, 0.78, 1);
 
             if (drag.mode === "white") {
-              const topGain = 0.3 + 1.02 * drag.topInfluence;
-              const bottomGain = 0.14 + 0.28 * drag.bottomInfluence;
-
               stateTarget.whiteLocalShiftX = clamp(
-                drag.startWhiteLocalShiftX + localHorizontal * 0.92,
-                -1.35,
-                1.35
+                drag.startWhiteLocalShiftX + sideLocalHorizontal * 1.04,
+                -1.8,
+                1.8
               );
-              stateTarget.whiteFocusY = clamp(drag.startWhiteFocusY + localVertical * 1.18, -1.08, 1.08);
+              stateTarget.whiteLocalShiftY = clamp(
+                drag.startWhiteLocalShiftY + localVertical * 4.8,
+                -2.8,
+                2.8
+              );
+              stateTarget.whiteFocusY = clamp(
+                drag.startWhiteFocusY * (1 - eyeFocusFollow) +
+                  pointerYNorm * eyeFocusFollow +
+                  localVertical * 0.42,
+                -1.24,
+                1.24
+              );
+              const eyeToFace = stateTarget.whiteFocusY - EYE_LOAD_TARGETS.top.yNorm;
+              stateTarget.whiteMouthWidth = clamp(
+                drag.startWhiteMouthWidth +
+                  sideLocalHorizontal * 1.95 +
+                  Math.abs(localVertical) * 0.42,
+                -2.2,
+                4.2
+              );
+              stateTarget.whiteMouthHeight = clamp(
+                drag.startWhiteMouthHeight +
+                  localVertical * 2.25 +
+                  sideLocalHorizontal * 0.24 +
+                  eyeToFace * 0.72,
+                -2.4,
+                4
+              );
               stateTarget.whitePush = clampPush(
-                drag.startWhitePush + globalHorizontal * topGain + verticalRatioDrive * 0.62
+                drag.startWhitePush + sideGlobalHorizontal * (0.9 + 0.22 * drag.topInfluence)
               );
               stateTarget.blackPush = clampPush(
-                drag.startBlackPush -
-                  globalHorizontal * bottomGain * 0.42 -
-                  verticalRatioDrive * 0.58
+                drag.startBlackPush - sideGlobalHorizontal * (0.34 + 0.12 * drag.bottomInfluence)
               );
               stateTarget.whiteLift = clamp(
-                drag.startWhiteLift + globalVertical * (1.14 + 0.58 * drag.topInfluence),
-                -1.45,
-                1.45
+                drag.startWhiteLift + globalVertical * (2.05 + noseGrab * 0.5),
+                -2.4,
+                2.4
               );
               stateTarget.blackLift = clamp(
-                drag.startBlackLift + globalVertical * (0.05 + 0.11 * drag.bottomInfluence),
-                -1.45,
-                1.45
+                drag.startBlackLift + globalVertical * 0.24,
+                -2.2,
+                2.2
               );
             } else {
-              const bottomGain = 0.3 + 1.02 * drag.bottomInfluence;
-              const topGain = 0.14 + 0.28 * drag.topInfluence;
-
               stateTarget.blackLocalShiftX = clamp(
-                drag.startBlackLocalShiftX - localHorizontal * 0.92,
-                -1.35,
-                1.35
+                drag.startBlackLocalShiftX + sideLocalHorizontal * 1.04,
+                -1.8,
+                1.8
               );
-              stateTarget.blackFocusY = clamp(drag.startBlackFocusY + localVertical * 1.18, -1.08, 1.08);
+              stateTarget.blackLocalShiftY = clamp(
+                drag.startBlackLocalShiftY + localVertical * 4.8,
+                -2.8,
+                2.8
+              );
+              stateTarget.blackFocusY = clamp(
+                drag.startBlackFocusY * (1 - eyeFocusFollow) +
+                  pointerYNorm * eyeFocusFollow +
+                  localVertical * 0.42,
+                -1.24,
+                1.24
+              );
+              const eyeToFace = EYE_LOAD_TARGETS.bottom.yNorm - stateTarget.blackFocusY;
+              stateTarget.blackMouthWidth = clamp(
+                drag.startBlackMouthWidth +
+                  sideLocalHorizontal * 1.95 +
+                  Math.abs(localVertical) * 0.42,
+                -2.2,
+                4.2
+              );
+              stateTarget.blackMouthHeight = clamp(
+                drag.startBlackMouthHeight +
+                  localVertical * 2.25 +
+                  sideLocalHorizontal * 0.24 +
+                  eyeToFace * 0.72,
+                -2.4,
+                4
+              );
               stateTarget.blackPush = clampPush(
-                drag.startBlackPush - globalHorizontal * bottomGain + verticalRatioDrive * 0.62
+                drag.startBlackPush + sideGlobalHorizontal * (0.9 + 0.22 * drag.bottomInfluence)
               );
               stateTarget.whitePush = clampPush(
-                drag.startWhitePush + globalHorizontal * topGain * 0.42 + verticalRatioDrive * 0.58
+                drag.startWhitePush - sideGlobalHorizontal * (0.34 + 0.12 * drag.topInfluence)
               );
               stateTarget.blackLift = clamp(
-                drag.startBlackLift + globalVertical * (1.14 + 0.58 * drag.bottomInfluence),
-                -1.45,
-                1.45
+                drag.startBlackLift + globalVertical * (2.05 + noseGrab * 0.5),
+                -2.4,
+                2.4
               );
               stateTarget.whiteLift = clamp(
-                drag.startWhiteLift + globalVertical * (0.05 + 0.11 * drag.topInfluence),
-                -1.45,
-                1.45
+                drag.startWhiteLift + globalVertical * 0.24,
+                -2.2,
+                2.2
               );
             }
+
             drag.last = local;
-          } else if (drag.mode === "topDotMove" || drag.mode === "bottomDotMove") {
-            const key = drag.mode === "topDotMove" ? "top" : "bottom";
-            const desiredX = local.x - drag.activeDotOffset.x;
-            const desiredY = local.y - drag.activeDotOffset.y;
-            setDotUserPosition(key, desiredX, desiredY, R);
+            requestDraw();
+            return;
           }
 
+          if (drag.mode === "white") {
+            const topGain = 0.3 + 1.02 * drag.topInfluence;
+            const bottomGain = 0.14 + 0.28 * drag.bottomInfluence;
+            const yBlend = clamp(0.7 + 0.5 * drag.topInfluence + noseGrab * 1.25 + mouthGrab * 0.9, 0.7, 1.8);
+            const focusFollow = clamp(0.44 + featureGrab * 0.5, 0.44, 0.96);
+            const secondaryLift = clamp(0.1 + 0.22 * drag.bottomInfluence + featureGrab * 0.24, 0.1, 0.48);
+
+            stateTarget.whiteLocalShiftX = clamp(
+              drag.startWhiteLocalShiftX + localHorizontal * 0.92,
+              -1.35,
+              1.35
+            );
+            stateTarget.whiteLocalShiftY = clamp(
+              drag.startWhiteLocalShiftY + localVertical * yBlend,
+              -2.4,
+              2.4
+            );
+            stateTarget.whiteMouthWidth = clamp(
+              drag.startWhiteMouthWidth +
+                (sideLocalHorizontal * 1.5 + sideGlobalHorizontal * 0.84 + localVertical * 0.16) *
+                  mouthGrab,
+              -2.4,
+              3.8
+            );
+            stateTarget.whiteMouthHeight = clamp(
+              drag.startWhiteMouthHeight +
+                (localVertical * (1.3 + mouthGrab * 1.5) + sideLocalHorizontal * 0.26) * mouthGrab,
+              -3.2,
+              2.6
+            );
+            stateTarget.whiteFocusY = clamp(
+              drag.startWhiteFocusY * (1 - focusFollow) +
+                pointerYNorm * focusFollow +
+                localVertical * (0.38 + featureGrab * 0.58),
+              -1.24,
+              1.24
+            );
+
+            stateTarget.whitePush = clampPush(
+              drag.startWhitePush + globalHorizontal * topGain + verticalRatioDrive * 0.62
+            );
+            stateTarget.blackPush = clampPush(
+              drag.startBlackPush -
+                globalHorizontal * bottomGain * 0.42 -
+                verticalRatioDrive * 0.58
+            );
+
+            stateTarget.whiteLift = clamp(
+              drag.startWhiteLift +
+                globalVertical * (1.1 + 0.58 * drag.topInfluence + noseGrab * 1.6 + mouthGrab * 0.44),
+              -2.2,
+              2.2
+            );
+            stateTarget.blackLift = clamp(
+              drag.startBlackLift + globalVertical * secondaryLift,
+              -2.2,
+              2.2
+            );
+          } else {
+            const bottomGain = 0.3 + 1.02 * drag.bottomInfluence;
+            const topGain = 0.14 + 0.28 * drag.topInfluence;
+            const yBlend = clamp(0.7 + 0.5 * drag.bottomInfluence + noseGrab * 1.25 + mouthGrab * 0.9, 0.7, 1.8);
+            const focusFollow = clamp(0.44 + featureGrab * 0.5, 0.44, 0.96);
+            const secondaryLift = clamp(0.1 + 0.22 * drag.topInfluence + featureGrab * 0.24, 0.1, 0.48);
+
+            stateTarget.blackLocalShiftX = clamp(
+              drag.startBlackLocalShiftX - localHorizontal * 0.92,
+              -1.35,
+              1.35
+            );
+            stateTarget.blackLocalShiftY = clamp(
+              drag.startBlackLocalShiftY + localVertical * yBlend,
+              -2.4,
+              2.4
+            );
+            stateTarget.blackMouthWidth = clamp(
+              drag.startBlackMouthWidth +
+                (sideLocalHorizontal * 1.5 + sideGlobalHorizontal * 0.84 + localVertical * 0.16) *
+                  mouthGrab,
+              -2.4,
+              3.8
+            );
+            stateTarget.blackMouthHeight = clamp(
+              drag.startBlackMouthHeight +
+                (localVertical * (1.3 + mouthGrab * 1.5) + sideLocalHorizontal * 0.26) * mouthGrab,
+              -3.2,
+              2.6
+            );
+            stateTarget.blackFocusY = clamp(
+              drag.startBlackFocusY * (1 - focusFollow) +
+                pointerYNorm * focusFollow +
+                localVertical * (0.38 + featureGrab * 0.58),
+              -1.24,
+              1.24
+            );
+
+            stateTarget.blackPush = clampPush(
+              drag.startBlackPush - globalHorizontal * bottomGain + verticalRatioDrive * 0.62
+            );
+            stateTarget.whitePush = clampPush(
+              drag.startWhitePush + globalHorizontal * topGain * 0.42 + verticalRatioDrive * 0.58
+            );
+
+            stateTarget.blackLift = clamp(
+              drag.startBlackLift +
+                globalVertical * (1.1 + 0.58 * drag.bottomInfluence + noseGrab * 1.6 + mouthGrab * 0.44),
+              -2.2,
+              2.2
+            );
+            stateTarget.whiteLift = clamp(
+              drag.startWhiteLift + globalVertical * secondaryLift,
+              -2.2,
+              2.2
+            );
+          }
+
+          drag.last = local;
           requestDraw();
         });
 
@@ -1920,6 +2927,7 @@
           if (!drag.active) return;
           if (e && typeof e.pointerId === "number" && e.pointerId !== drag.pointerId) return;
           drag.active = false;
+
           if (
             drag.pointerId != null &&
             typeof canvas.hasPointerCapture === "function" &&
@@ -1929,15 +2937,84 @@
               canvas.releasePointerCapture(drag.pointerId);
             } catch (_) {}
           }
+
           drag.pointerId = null;
           drag.mode = null;
+          drag.eyeGrab = null;
+          drag.noseGrab = 0;
+          drag.mouthGrab = 0;
           requestDraw();
         }
 
         canvas.addEventListener("pointerup", endDrag);
         canvas.addEventListener("pointercancel", endDrag);
         canvas.addEventListener("lostpointercapture", () => endDrag());
-        window.addEventListener("blur", () => endDrag());
+        window.addEventListener("blur", () => {
+          endDrag();
+          endBalanceDrag();
+        });
+
+        function endBalanceDrag(e) {
+          if (!balanceDrag.active) return;
+          if (e && typeof e.pointerId === "number" && e.pointerId !== balanceDrag.pointerId) return;
+          balanceDrag.active = false;
+          if (
+            balanceDrag.pointerId != null &&
+            typeof balanceTrack.hasPointerCapture === "function" &&
+            balanceTrack.hasPointerCapture(balanceDrag.pointerId)
+          ) {
+            try {
+              balanceTrack.releasePointerCapture(balanceDrag.pointerId);
+            } catch (_) {}
+          }
+          balanceDrag.pointerId = null;
+        }
+
+        balanceTrack.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          const xNorm = getBalanceTrackXNorm(e);
+          const splitNorm = 1 - balancePositiveRatio;
+          const side = xNorm <= splitNorm ? "black" : "white";
+          balanceDrag.active = true;
+          balanceDrag.pointerId = e.pointerId;
+          balanceDrag.side = side;
+          setBalanceFromPositiveRatio(1 - xNorm, side);
+          if (typeof balanceTrack.setPointerCapture === "function") {
+            balanceTrack.setPointerCapture(e.pointerId);
+          }
+          requestDraw();
+        });
+
+        balanceTrack.addEventListener("pointermove", (e) => {
+          if (!balanceDrag.active || e.pointerId !== balanceDrag.pointerId) return;
+          const xNorm = getBalanceTrackXNorm(e);
+          setBalanceFromPositiveRatio(1 - xNorm, balanceDrag.side);
+          requestDraw();
+        });
+
+        balanceTrack.addEventListener("pointerup", endBalanceDrag);
+        balanceTrack.addEventListener("pointercancel", endBalanceDrag);
+        balanceTrack.addEventListener("lostpointercapture", () => endBalanceDrag());
+
+        balanceTrack.addEventListener("keydown", (e) => {
+          let nextPositive = balancePositiveRatio;
+          if (e.code === "ArrowLeft") {
+            nextPositive -= 0.01;
+          } else if (e.code === "ArrowRight") {
+            nextPositive += 0.01;
+          } else if (e.code === "Home") {
+            nextPositive = PUSH_MIN;
+          } else if (e.code === "End") {
+            nextPositive = PUSH_MAX;
+          } else {
+            return;
+          }
+          e.preventDefault();
+          const side = nextPositive >= balancePositiveRatio ? "white" : "black";
+          setBalanceFromPositiveRatio(nextPositive, side);
+          requestDraw();
+        });
+
         window.addEventListener("resize", requestDraw, { passive: true });
         saveShotButton.addEventListener("click", captureMoodSymbol);
         window.addEventListener("keydown", (event) => {
