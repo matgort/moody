@@ -4,13 +4,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Duality tracker</title>
+    <title>Moody Faces</title>
+    <link rel="icon" type="image/svg+xml" href="./icons/moody-faces-icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/moody-faces-icon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/moody-faces-icon-180.png" />
+    <link rel="manifest" href="./site.webmanifest" />
     <style>
       :root {
         --bg: #a87444;
         --black: #64418e;
         --white: #ff6699;
         --line: #231f20;
+        --face-blurb-gap: clamp(12px, 2.2vh, 22px);
         --text-subtle: rgba(73, 45, 23, 0.72);
         --condensed:
           "Futura-CondensedExtraBold", "Futura Condensed", "Avenir Next Condensed",
@@ -96,7 +101,7 @@
         display: grid;
         justify-items: center;
         gap: 4px;
-        margin-top: clamp(12px, 2.2vh, 22px);
+        margin-top: var(--face-blurb-gap);
         margin-bottom: 0;
       }
 
@@ -105,7 +110,7 @@
         display: grid;
         justify-items: center;
         gap: 2px;
-        margin-top: clamp(8px, 1.6vh, 16px);
+        margin-top: var(--face-blurb-gap);
         margin-bottom: clamp(6px, 1.4vh, 14px);
       }
 
@@ -225,31 +230,34 @@
       @media (max-width: 760px) {
         .app {
           position: relative;
+          width: 100vw;
           gap: 10px;
           justify-content: center;
+          padding-left: 20px;
+          padding-right: 20px;
           padding-top: calc(6px + env(safe-area-inset-top));
           padding-bottom: calc(8px + env(safe-area-inset-bottom));
         }
 
         .symbol-stage {
-          width: min(90vw, 56svh, 620px);
+          width: min(100%, 56svh, 620px);
           margin-top: 0;
         }
 
         .balance-meter {
-          width: min(68vw, 240px);
+          width: min(calc((100vw - 40px) * 0.68), 240px);
           gap: 3px;
           margin-top: clamp(10px, 2.2vh, 18px);
           margin-bottom: clamp(10px, 2vh, 18px);
         }
 
         .balance-track {
-          width: min(54vw, 180px);
+          width: min(calc((100vw - 40px) * 0.54), 180px);
           height: 9px;
         }
 
         .balance-label-row {
-          width: min(54vw, 180px);
+          width: min(calc((100vw - 40px) * 0.54), 180px);
         }
 
         .balance-label {
@@ -272,10 +280,11 @@
 
         .meta {
           position: absolute;
-          left: 50%;
-          transform: translateX(-50%);
+          left: 0;
+          right: 0;
+          transform: none;
           bottom: calc(2px + env(safe-area-inset-bottom));
-          width: min(98vw, 680px);
+          width: 100%;
           gap: 3px;
           margin: 0;
         }
@@ -283,7 +292,8 @@
         .instruction {
           font-size: clamp(12px, 2.5vw, 14px);
           color: #000000;
-          white-space: nowrap;
+          max-width: 100%;
+          white-space: normal;
         }
 
         .shot-btn {
@@ -335,6 +345,7 @@
         <div class="button-row">
           <button class="shot-btn" id="resetSymbol" type="button">reset</button>
           <button class="shot-btn" id="saveShot" type="button">screenshot</button>
+          <button class="shot-btn" id="cycleColors" type="button">colors</button>
         </div>
         <p class="save-status" id="saveStatus" aria-live="polite"></p>
       </section>
@@ -357,9 +368,9 @@
         const BORDER_POINT_FREEZE_START = 1.01;
         const DRAG_ACTIVATE_VIEWBOX = 2.8;
         const ROTATE_EPSILON = 0.045;
-        const ROTATION_SPEED = 7.5; // radians per second
+        const ROTATION_SPEED = 14.0; // rotational response (higher = faster)
         const ROTATION_DT_MIN = 1 / 240;
-        const ROTATION_DT_MAX = 1 / 40;
+        const ROTATION_DT_MAX = 1 / 30;
         const ROTATION_SNAP_EPSILON = 8e-4;
         const FIELD_SIZE = 58;
         const FIELD_SIGMA = VIEWBOX_SIZE * 0.29;
@@ -404,8 +415,8 @@
             side: "left",
           },
           bottomEye: {
-            center: { x: 328.5, y: 451 },
-            bridge: { x: HALF, y: 366 },
+            center: { x: 2 * HALF - 205, y: 2 * HALF - 109.5 },
+            bridge: { x: HALF, y: 2 * HALF - 171 },
             side: "right",
           },
         });
@@ -421,6 +432,7 @@
         const dateBottom = document.getElementById("dateBottom");
         const saveShotButton = document.getElementById("saveShot");
         const resetSymbolButton = document.getElementById("resetSymbol");
+        const cycleColorsButton = document.getElementById("cycleColors");
         const saveStatus = document.getElementById("saveStatus");
         const balanceTrack = document.getElementById("balanceTrack");
         const balanceNegFill = document.getElementById("balanceNegFill");
@@ -435,6 +447,14 @@
           white: rootStyles.getPropertyValue("--white").trim() || "#ff6699",
           line: rootStyles.getPropertyValue("--line").trim() || "#231f20",
         };
+        const PALETTES = [
+          { positive: COLORS.white, negative: COLORS.black },
+          { positive: "#ec5b32", negative: "#aab845" },
+          { positive: "#66a4cc", negative: "#5f94e5" },
+          { positive: "#000000", negative: "#ffffff" },
+          { positive: "#ffffff", negative: "#000000" },
+        ];
+        let paletteIndex = 0;
 
         const CONDENSED_FONT_STACK =
           '"Futura-CondensedExtraBold","Futura Condensed","Avenir Next Condensed","Arial Narrow","Roboto Condensed","Impact",sans-serif';
@@ -485,7 +505,7 @@
           "positiveSeamRightA",
           "positiveSeamRightB",
         ]);
-        const pathModels = FACE_PATHS.filter((def) => !LEGACY_SEAM_KEYS.has(def.key)).map((def) => {
+        const rawPathModels = FACE_PATHS.filter((def) => !LEGACY_SEAM_KEYS.has(def.key)).map((def) => {
           const parsed = parsePathDataToAbsolute(def.d);
           const commands =
             def.key === "positiveFace" || def.key === "negativeFace"
@@ -494,6 +514,16 @@
           return {
             ...def,
             commands,
+          };
+        });
+        const topEyeModelForMirror = rawPathModels.find((model) => model.key === "topEye");
+        const pathModels = rawPathModels.map((model) => {
+          if (model.key !== "bottomEye" || !topEyeModelForMirror) {
+            return model;
+          }
+          return {
+            ...model,
+            commands: rotateCommands180(topEyeModelForMirror.commands),
           };
         });
 
@@ -654,8 +684,8 @@
             return false;
           }
           const safeDt = clamp(Number.isFinite(dt) ? dt : 1 / 60, ROTATION_DT_MIN, ROTATION_DT_MAX);
-          const maxStep = ROTATION_SPEED * safeDt;
-          const nextDelta = Math.sign(delta) * Math.min(absDelta, maxStep);
+          const follow = 1 - Math.exp(-ROTATION_SPEED * safeDt);
+          const nextDelta = delta * follow;
           viewRotation.current = normalizeAngle(viewRotation.current + nextDelta);
           const remaining = Math.abs(shortestAngleDelta(viewRotation.current, viewRotation.target));
           if (remaining <= ROTATION_SNAP_EPSILON) {
@@ -910,6 +940,41 @@
           updateBalanceUnderlay();
         }
 
+        function applyPalette(index, shouldRedraw = true) {
+          if (!Array.isArray(PALETTES) || PALETTES.length === 0) return;
+          const nextIndex = ((index % PALETTES.length) + PALETTES.length) % PALETTES.length;
+          paletteIndex = nextIndex;
+
+          const swatch = PALETTES[paletteIndex];
+          COLORS.white = swatch.positive;
+          COLORS.black = swatch.negative;
+
+          document.documentElement.style.setProperty("--white", COLORS.white);
+          document.documentElement.style.setProperty("--black", COLORS.black);
+
+          runtime.balancePositiveRgb = parseColorToRgb(COLORS.white, runtime.balancePositiveRgb);
+          runtime.balanceNegativeRgb = parseColorToRgb(COLORS.black, runtime.balanceNegativeRgb);
+
+          if (dom.basePositive) {
+            dom.basePositive.setAttribute("fill", COLORS.white);
+          }
+          if (dom.baseNegative) {
+            dom.baseNegative.setAttribute("fill", COLORS.black);
+          }
+
+          for (let i = 0; i < pathModels.length; i += 1) {
+            const model = pathModels[i];
+            const pair = dom.pathEls.get(model.key);
+            if (!pair || !pair.fill) continue;
+            pair.fill.setAttribute("fill", getFillForClass(model.cls));
+          }
+
+          updateBalanceUI();
+          if (shouldRedraw) {
+            requestDraw();
+          }
+        }
+
         function setBalance(value, shouldRedraw = true) {
           balanceState.value = clampBalance(value);
           balanceState.displayValue = balanceState.value;
@@ -1063,6 +1128,36 @@
             if (cmd.type === "Z") break;
           }
           return primary.length > 0 ? primary : commands;
+        }
+
+        function rotateCommands180(commands) {
+          if (!commands || commands.length === 0) return commands;
+          const mirrored = [];
+          for (let i = 0; i < commands.length; i += 1) {
+            const cmd = commands[i];
+            if (cmd.type === "M" || cmd.type === "L") {
+              mirrored.push({
+                type: cmd.type,
+                x: 2 * HALF - cmd.x,
+                y: 2 * HALF - cmd.y,
+              });
+              continue;
+            }
+            if (cmd.type === "C") {
+              mirrored.push({
+                type: "C",
+                x1: 2 * HALF - cmd.x1,
+                y1: 2 * HALF - cmd.y1,
+                x2: 2 * HALF - cmd.x2,
+                y2: 2 * HALF - cmd.y2,
+                x: 2 * HALF - cmd.x,
+                y: 2 * HALF - cmd.y,
+              });
+              continue;
+            }
+            mirrored.push(cmd);
+          }
+          return mirrored;
         }
 
         function sampleField(x, y) {
@@ -2032,6 +2127,11 @@
         if (resetSymbolButton) {
           resetSymbolButton.addEventListener("click", resetSymbolState);
         }
+        if (cycleColorsButton) {
+          cycleColorsButton.addEventListener("click", () => {
+            applyPalette(paletteIndex + 1, true);
+          });
+        }
         window.addEventListener("keydown", (event) => {
           if (event.code !== "Space" || event.repeat) return;
           const activeTag = (document.activeElement?.tagName || "").toLowerCase();
@@ -2041,6 +2141,7 @@
         });
 
         buildSvgScene();
+        applyPalette(0, false);
         setBalance(0.5, false);
         requestDraw();
       })();
