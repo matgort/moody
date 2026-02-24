@@ -380,6 +380,12 @@
         const FIELD_NEIGHBOR_MAX_FACTOR = 0.76;
         const FIELD_MAX_DISPLACE = HALF * 1.22;
         const MAX_PULL_STEP = VIEWBOX_SIZE * 0.06;
+        const FEATURE_SELECT_RADIUS = VIEWBOX_SIZE * 0.115;
+        const FEATURE_LOCAL_SIGMA = VIEWBOX_SIZE * 0.105;
+        const FEATURE_LOCAL_PULL = 1.18;
+        const FEATURE_GLOBAL_FOLLOW = 0.5;
+        const PINCH_PULL_GAIN = 0.95;
+        const PINCH_MAX_STEP = VIEWBOX_SIZE * 0.085;
         const BALANCE_MIN = 0.01;
         const BALANCE_MAX = 0.99;
         const BALANCE_SHIFT_MAX = VIEWBOX_SIZE * 0.43;
@@ -401,12 +407,12 @@
         const FACE_PART_FEATURE_BOOST = 0.1;
         const FACE_PART_FEATURE_RADIUS = VIEWBOX_SIZE * 0.18;
         const FACE_PART_FEATURES = Object.freeze([
-          { x: 352, y: 198 }, // positive nose
-          { x: 340, y: 264 }, // positive upper lip
-          { x: 300, y: 302 }, // positive lower lip/chin
-          { x: 184, y: 338 }, // negative nose
-          { x: 202, y: 276 }, // negative upper lip
-          { x: 246, y: 316 }, // negative lower lip/chin
+          { x: 352, y: 198, side: "positive", part: "nose" },
+          { x: 340, y: 264, side: "positive", part: "upperLip" },
+          { x: 300, y: 302, side: "positive", part: "lowerLip" },
+          { x: 184, y: 338, side: "negative", part: "nose" },
+          { x: 202, y: 276, side: "negative", part: "upperLip" },
+          { x: 246, y: 316, side: "negative", part: "lowerLip" },
         ]);
         const EYE_LOGIC_MODEL = Object.freeze({
           topEye: {
@@ -545,6 +551,16 @@
           last: { x: 0, y: 0 },
           distance: 0,
           pendingRotation: false,
+          featureMode: false,
+          featureAnchor: null,
+          featureOffset: { x: 0, y: 0 },
+        };
+        const multiTouch = {
+          pointers: new Map(),
+          active: false,
+          prevMid: null,
+          prevSpan: 0,
+          featureAnchor: null,
         };
 
         const viewRotation = {
@@ -1285,9 +1301,10 @@
           }
         }
 
-        function applyFieldPull(center, delta) {
+        function applyFieldPullKernel(center, delta, sigma, strength = 1) {
           const size = field.size;
-          const sigma2 = FIELD_SIGMA * FIELD_SIGMA;
+          const safeSigma = Math.max(1e-6, sigma);
+          const sigma2 = safeSigma * safeSigma;
           const invTwoSigma2 = 1 / Math.max(1e-9, 2 * sigma2);
 
           for (let j = 0; j < size; j += 1) {
@@ -1304,16 +1321,67 @@
                 Math.hypot(x - HALF, y - HALF) / HALF
               );
               const atten = 1 - rim * 0.9;
-              field.dx[idx] += delta.x * w * atten;
-              field.dy[idx] += delta.y * w * atten;
+              field.dx[idx] += delta.x * w * atten * strength;
+              field.dy[idx] += delta.y * w * atten * strength;
             }
           }
+        }
 
+        function finalizeFieldPull() {
           relaxField();
           limitFieldNeighborDelta();
           constrainField();
           limitFieldNeighborDelta();
           constrainField();
+        }
+
+        function applyFieldPull(center, delta) {
+          applyFieldPullKernel(center, delta, FIELD_SIGMA, 1);
+          finalizeFieldPull();
+        }
+
+        function applyFeaturePull(center, delta) {
+          applyFieldPullKernel(center, delta, FEATURE_LOCAL_SIGMA, FEATURE_LOCAL_PULL);
+          applyFieldPullKernel(center, delta, FIELD_SIGMA, FEATURE_GLOBAL_FOLLOW);
+          finalizeFieldPull();
+        }
+
+        function applyRadialPinchKernel(center, amount, sigma, strength = 1) {
+          const size = field.size;
+          const safeSigma = Math.max(1e-6, sigma);
+          const sigma2 = safeSigma * safeSigma;
+          const invTwoSigma2 = 1 / Math.max(1e-9, 2 * sigma2);
+
+          for (let j = 0; j < size; j += 1) {
+            const y = field.axis[j];
+            for (let i = 0; i < size; i += 1) {
+              const x = field.axis[i];
+              const idx = j * size + i;
+              const rx = x - center.x;
+              const ry = y - center.y;
+              const r2 = rx * rx + ry * ry;
+              const r = Math.hypot(rx, ry);
+              if (r <= 1e-6) continue;
+              const w = Math.exp(-r2 * invTwoSigma2);
+              const rim = smoothstep(
+                RIM_LOCK_START,
+                RIM_LOCK_END,
+                Math.hypot(x - HALF, y - HALF) / HALF
+              );
+              const atten = 1 - rim * 0.9;
+              const push = amount * w * atten * strength;
+              field.dx[idx] += (rx / r) * push;
+              field.dy[idx] += (ry / r) * push;
+            }
+          }
+        }
+
+        function applyFeaturePinchPull(center, moveDelta, pinchDelta) {
+          applyFieldPullKernel(center, moveDelta, FEATURE_LOCAL_SIGMA, FEATURE_LOCAL_PULL);
+          applyFieldPullKernel(center, moveDelta, FIELD_SIGMA, FEATURE_GLOBAL_FOLLOW);
+          applyRadialPinchKernel(center, pinchDelta, FEATURE_LOCAL_SIGMA, FEATURE_LOCAL_PULL);
+          applyRadialPinchKernel(center, pinchDelta, FIELD_SIGMA, FEATURE_GLOBAL_FOLLOW);
+          finalizeFieldPull();
         }
 
         function warpPoint(x, y) {
@@ -1715,6 +1783,48 @@
           return point.x < HALF ? "positive" : "negative";
         }
 
+        function findClosestFeature(point, side) {
+          const hitRadiusSq = FEATURE_SELECT_RADIUS * FEATURE_SELECT_RADIUS;
+          let best = null;
+          let bestDistSq = Infinity;
+
+          for (let i = 0; i < FACE_PART_FEATURES.length; i += 1) {
+            const f = FACE_PART_FEATURES[i];
+            if (side && f.side !== side) continue;
+            const dx = point.x - f.x;
+            const dy = point.y - f.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq > hitRadiusSq || distSq >= bestDistSq) continue;
+            best = f;
+            bestDistSq = distSq;
+          }
+
+          return best;
+        }
+
+        function getTwoTouchPointers() {
+          if (multiTouch.pointers.size < 2) return null;
+          const values = multiTouch.pointers.values();
+          const a = values.next().value;
+          const b = values.next().value;
+          if (!a || !b) return null;
+          return [a, b];
+        }
+
+        function getMidAndSpan(a, b) {
+          const mid = {
+            x: (a.x + b.x) * 0.5,
+            y: (a.y + b.y) * 0.5,
+          };
+          const span = Math.max(1e-6, Math.hypot(a.x - b.x, a.y - b.y));
+          return { mid, span };
+        }
+
+        function updateMultiTouchAnchorFromCenter(center) {
+          const side = classifySideAtModelPoint(center);
+          multiTouch.featureAnchor = findClosestFeature(center, side) || null;
+        }
+
         function draw() {
           const nowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
           const dt =
@@ -2000,6 +2110,38 @@
           }
           drag.pointerId = null;
           drag.pendingRotation = false;
+          drag.featureMode = false;
+          drag.featureAnchor = null;
+          drag.featureOffset = { x: 0, y: 0 };
+        }
+
+        function endAnyPointer(e) {
+          if (e && typeof e.pointerId === "number" && multiTouch.pointers.has(e.pointerId)) {
+            multiTouch.pointers.delete(e.pointerId);
+            if (multiTouch.pointers.size < 2) {
+              multiTouch.active = false;
+              multiTouch.prevMid = null;
+              multiTouch.prevSpan = 0;
+              multiTouch.featureAnchor = null;
+            } else {
+              const pair = getTwoTouchPointers();
+              if (pair) {
+                const gesture = getMidAndSpan(pair[0], pair[1]);
+                multiTouch.prevMid = gesture.mid;
+                multiTouch.prevSpan = gesture.span;
+                updateMultiTouchAnchorFromCenter(gesture.mid);
+              }
+            }
+            if (
+              typeof svg.hasPointerCapture === "function" &&
+              svg.hasPointerCapture(e.pointerId)
+            ) {
+              try {
+                svg.releasePointerCapture(e.pointerId);
+              } catch (_) {}
+            }
+          }
+          endDrag(e);
         }
 
         svg.addEventListener("pointerdown", (e) => {
@@ -2007,6 +2149,45 @@
           if (!isInsideCircle(modelPoint)) return;
 
           const clamped = clampPointToCircle(modelPoint);
+
+          if (e.pointerType === "touch") {
+            multiTouch.pointers.set(e.pointerId, {
+              id: e.pointerId,
+              x: clamped.x,
+              y: clamped.y,
+              lastX: clamped.x,
+              lastY: clamped.y,
+              startX: clamped.x,
+              startY: clamped.y,
+            });
+            svg.setPointerCapture(e.pointerId);
+
+            if (multiTouch.pointers.size >= 2) {
+              const pair = getTwoTouchPointers();
+              if (pair) {
+                const gesture = getMidAndSpan(pair[0], pair[1]);
+                multiTouch.active = true;
+                multiTouch.prevMid = gesture.mid;
+                multiTouch.prevSpan = gesture.span;
+                updateMultiTouchAnchorFromCenter(gesture.mid);
+              }
+              if (
+                drag.pointerId != null &&
+                typeof svg.hasPointerCapture === "function" &&
+                svg.hasPointerCapture(drag.pointerId)
+              ) {
+                try {
+                  svg.releasePointerCapture(drag.pointerId);
+                } catch (_) {}
+              }
+              drag.active = false;
+              drag.pointerId = null;
+              drag.pendingRotation = false;
+              requestDraw();
+              return;
+            }
+          }
+
           const selectedSide = classifySideAtModelPoint(clamped);
           setViewRotationTargetForSide(selectedSide);
 
@@ -2021,12 +2202,101 @@
           drag.start = clamped;
           drag.last = clamped;
           drag.distance = 0;
+          const hitFeature = findClosestFeature(clamped, selectedSide);
+          drag.featureMode = Boolean(hitFeature);
+          drag.featureAnchor = hitFeature || null;
+          drag.featureOffset = hitFeature
+            ? { x: clamped.x - hitFeature.x, y: clamped.y - hitFeature.y }
+            : { x: 0, y: 0 };
 
           svg.setPointerCapture(e.pointerId);
           requestDraw();
         });
 
         svg.addEventListener("pointermove", (e) => {
+          if (multiTouch.pointers.has(e.pointerId)) {
+            const point = clampPointToCircle(getModelPointFromEvent(e));
+            const tracked = multiTouch.pointers.get(e.pointerId);
+            tracked.lastX = tracked.x;
+            tracked.lastY = tracked.y;
+            tracked.x = point.x;
+            tracked.y = point.y;
+
+            if (multiTouch.active && multiTouch.pointers.size >= 2) {
+              const pair = getTwoTouchPointers();
+              if (pair) {
+                const a = pair[0];
+                const b = pair[1];
+                const gesture = getMidAndSpan(a, b);
+                if (!multiTouch.prevMid) {
+                  multiTouch.prevMid = gesture.mid;
+                  multiTouch.prevSpan = gesture.span;
+                  updateMultiTouchAnchorFromCenter(gesture.mid);
+                  return;
+                }
+
+                const aMove = Math.hypot(a.x - a.lastX, a.y - a.lastY);
+                const bMove = Math.hypot(b.x - b.lastX, b.y - b.lastY);
+                const hasAnchor = aMove < bMove * 0.55 || bMove < aMove * 0.55;
+                const anchor = hasAnchor ? (aMove <= bMove ? a : b) : null;
+                const mover = hasAnchor ? (anchor === a ? b : a) : null;
+
+                let center = gesture.mid;
+                let rawMove = {
+                  x: gesture.mid.x - multiTouch.prevMid.x,
+                  y: gesture.mid.y - multiTouch.prevMid.y,
+                };
+                let rawSpanDelta = gesture.span - multiTouch.prevSpan;
+
+                if (anchor && mover) {
+                  center = { x: anchor.x, y: anchor.y };
+                  rawMove = {
+                    x: mover.x - mover.lastX,
+                    y: mover.y - mover.lastY,
+                  };
+                  const prevDist = Math.max(
+                    1e-6,
+                    Math.hypot(mover.lastX - anchor.lastX, mover.lastY - anchor.lastY)
+                  );
+                  const nextDist = Math.max(1e-6, Math.hypot(mover.x - anchor.x, mover.y - anchor.y));
+                  rawSpanDelta = nextDist - prevDist;
+                }
+
+                const rawMoveMag = Math.hypot(rawMove.x, rawMove.y);
+                const moveScale =
+                  rawMoveMag > 1e-6 ? Math.min(1, MAX_PULL_STEP / Math.max(1e-9, rawMoveMag)) : 0;
+                const moveDelta = {
+                  x: rawMove.x * moveScale,
+                  y: rawMove.y * moveScale,
+                };
+                const pinchDelta = clamp(
+                  rawSpanDelta * PINCH_PULL_GAIN,
+                  -PINCH_MAX_STEP,
+                  PINCH_MAX_STEP
+                );
+
+                if (rawMoveMag > 1e-4 || Math.abs(pinchDelta) > 1e-4) {
+                  runtime.balanceReadbackEnabled = true;
+                  const clampedCenter = clampPointToCircle(center);
+                  const useFeature = Boolean(multiTouch.featureAnchor);
+                  if (useFeature) {
+                    applyFeaturePinchPull(clampedCenter, moveDelta, pinchDelta);
+                  } else {
+                    applyFieldPullKernel(clampedCenter, moveDelta, FIELD_SIGMA, 1);
+                    applyRadialPinchKernel(clampedCenter, pinchDelta, FIELD_SIGMA, 1);
+                    finalizeFieldPull();
+                  }
+                  requestDraw();
+                }
+
+                multiTouch.prevMid = gesture.mid;
+                multiTouch.prevSpan = gesture.span;
+                updateMultiTouchAnchorFromCenter(center);
+              }
+              return;
+            }
+          }
+
           if (!drag.active || e.pointerId !== drag.pointerId) return;
 
           const modelPoint = clampPointToCircle(getModelPointFromEvent(e));
@@ -2065,14 +2335,29 @@
           };
 
           runtime.balanceReadbackEnabled = true;
-          applyFieldPull(modelPoint, pullDelta);
+          if (drag.featureMode && drag.featureAnchor) {
+            const center = clampPointToCircle({
+              x: modelPoint.x - drag.featureOffset.x,
+              y: modelPoint.y - drag.featureOffset.y,
+            });
+            applyFeaturePull(center, pullDelta);
+          } else {
+            applyFieldPull(modelPoint, pullDelta);
+          }
           requestDraw();
         });
 
-        svg.addEventListener("pointerup", endDrag);
-        svg.addEventListener("pointercancel", endDrag);
-        svg.addEventListener("lostpointercapture", () => endDrag());
-        window.addEventListener("blur", () => endDrag());
+        svg.addEventListener("pointerup", endAnyPointer);
+        svg.addEventListener("pointercancel", endAnyPointer);
+        svg.addEventListener("lostpointercapture", () => endAnyPointer());
+        window.addEventListener("blur", () => {
+          multiTouch.pointers.clear();
+          multiTouch.active = false;
+          multiTouch.prevMid = null;
+          multiTouch.prevSpan = 0;
+          multiTouch.featureAnchor = null;
+          endDrag();
+        });
 
         function endBalanceDrag(e) {
           if (!balanceState.dragging) return;
